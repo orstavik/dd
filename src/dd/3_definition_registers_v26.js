@@ -29,8 +29,12 @@ class DefinitionsMap {
   #cache = {};
   #tryPortal(fullname, portalName) {
     const Portal = this.#portals[portalName];
-    if (!Portal) //accessed before definition will set as blank.
-      return this.#cache[fullname] = this.#portals[portalName] = undefined;
+    if (!Portal) {
+      let r;
+      const p = new Promise(f => r = f);
+      p.resolve = r;
+      return this.#cache[fullname] = this.#portals[portalName] = p;
+    }
     if (Portal instanceof Error)
       return this.#cache[fullname] = Portal;
     if (Portal instanceof Promise)
