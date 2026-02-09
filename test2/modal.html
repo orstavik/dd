@@ -1,0 +1,48 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+
+<style>
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    width: 200px;
+    height: 200px;
+    overflow: auto;
+    background-color: rgb(0, 0, 0);
+    color: white;
+    margin: auto;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+  }
+</style>
+
+<div>
+  <div class="modal" click:closemodal>
+    <h1></h1>
+  </div>
+  <div>
+    <button click:loadmodal_1:openmodal>Load Modal 1</button>
+    <button click:loadmodal_2:openmodal>Load Modal 2</button>
+  </div>
+</div>
+
+<script>
+  document.Reactions.defineRule('loadmodal_', function(fullname) {
+    console.log(fullname);
+    let slug = fullname.split('_')[1]
+    return function() {
+      this.ownerElement.parentElement.parentElement.firstElementChild.querySelector('h1').innerText = `Modal ${slug}`;
+    };
+  });
+
+  document.Reactions.define('openmodal', function() {
+    this.ownerElement.parentElement.parentElement.firstElementChild.style.display = 'block';
+  });
+  
+  document.Reactions.define('closemodal', function() {
+    this.ownerElement.style.display = 'none';
+  });
+</script>

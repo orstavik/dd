@@ -1,0 +1,112 @@
+<!-- I want to make a game of hangman using doubledots.
+The app needs to: 
+-Choose a random word from a list
+-Display the word as a series of underscores
+-Display the letters that have been guessed
+-Display the number of guesses remaining
+-Display the result of the game
+-Display a button to play again
+-Display a button to reset the game
+-Display an input field to enter a letter
+-Display an input field to enter a word
+-Display a button to submit the letter
+-Display a button to submit the word
+
+The game will work as follows:
+-When the game starts, a random word will be chosen from a list
+-The word will be displayed as a series of underscores
+-The user will be able to enter a letter or a word
+-If the letter is in the word, it will be displayed
+-If the word is correct, the game will end and the result will be displayed
+-If the word is incorrect, the number of guesses remaining will be decremented
+-If the number of guesses reaches 0, the game will end and the result will be displayed
+-The user will be able to play again
+-The user will be able to reset the game
+ -->
+
+
+<div click:playGame>
+  <div>Play</div>
+</div>
+
+<div id="word"></div>
+<div id="letters"></div>
+<div id="guesses"></div>
+<div id="result"></div>
+<div id="playAgain"></div>
+<div id="reset"></div>
+<div id="letterInput"></div>
+<div id="wordInput"></div>
+<div click:submitLetter>
+  <div>Submit Letter</div>
+</div>
+<div click:submitWord>
+  <div>Submit Word</div>
+</div>
+
+
+<script>
+  let words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'pear', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'watermelon'];
+  let word = '';
+  let guessedLetters = [];
+  let guesses = 6;
+  let result = '';
+  let playAgain = '';
+  let reset = '';
+  let letterInput = '';
+  let wordInput = '';
+
+  customReactions.define('playGame', (e,oi) => {
+    word = words[Math.floor(Math.random() * words.length)];
+    guessedLetters = [];
+    guesses = 6;
+    result = '';
+    playAgain = '';
+    reset = '';
+    letterInput = '';
+    wordInput = '';
+    render();
+  });
+
+  customReactions.define('submitLetter', (e,oi) => {
+    let letter = letterInput.value;
+    if (word.includes(letter)) {
+      guessedLetters.push(letter);
+    } else {
+      guesses--;
+    }
+    render();
+  });
+
+  customReactions.define('submitWord', (e,oi) => {
+    let wordGuess = wordInput.value;
+    if (wordGuess === word) {
+      result = 'You win!';
+    } else {
+      guesses = 0;
+    }
+    render();
+  });
+
+  function render() {
+    let wordDisplay = '';
+    for (let i = 0; i < word.length; i++) {
+      if (guessedLetters.includes(word[i])) {
+        wordDisplay += word[i];
+      } else {
+        wordDisplay += '_';
+      }
+    }
+    document.getElementById('word').innerHTML = wordDisplay;
+    document.getElementById('letters').innerHTML = 'Guessed Letters: ' + guessedLetters.join(', ');
+    document.getElementById('guesses').innerHTML = 'Guesses Remaining: ' + guesses;
+    document.getElementById('result').innerHTML = result;
+    document.getElementById('playAgain').innerHTML = playAgain;
+    document.getElementById('reset').innerHTML = reset;
+    document.getElementById('letterInput').innerHTML = '<input type="text" id="letterInput">';
+    document.getElementById('wordInput').innerHTML = '<input type="text" id="wordInput">';
+  }
+
+  render();
+</script>
+

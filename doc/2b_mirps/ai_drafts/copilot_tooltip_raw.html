@@ -1,0 +1,37 @@
+<!-- I want to build a tooltip functionality using doubledots.
+
+  The display has:
+  - an image that when hovered over, displays a tooltip with the text "Hello World"
+
+  The app needs to:
+  - display the tooltip when the image is hovered over
+  - hide the tooltip when the image is no longer hovered over
+  - display the tooltip text "Hello World" in the tooltip
+  - display the tooltip in the place where the cursor is
+  - update the tooltip position when the cursor moves
+-->
+
+<body>
+
+  <img src="https://via.placeholder.com/150" hover:show-tooltip>
+  <div id="tooltip" style="display: none;">Hello World</div>
+
+  <script>
+    customReactions.define('show-tooltip', function (e) {
+      const tooltip = this.ownerElement.nextElementSibling
+      tooltip.style.display = 'block'
+      tooltip.style.left = e.clientX + 'px'
+      tooltip.style.top = e.clientY + 'px'
+    })
+
+    customReactions.define('hide-tooltip', function (e) {
+      const tooltip = this.ownerElement.nextElementSibling
+      tooltip.style.display = 'none'
+    })
+
+    customReactions.define('update-tooltip', function (e) {
+      const tooltip = this.ownerElement.nextElementSibling
+      tooltip.style.left = e.clientX + 'px'
+      tooltip.style.top = e.clientY + 'px'
+    })
+  </script>

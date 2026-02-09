@@ -1,0 +1,21 @@
+<script src="/dd.js"></script><script src="../../src/triggers/PropagationSimple.js"></script>
+<script src="../../src/triggers/ObserverIntersectionTriggers.js"></script>
+
+<script>
+  document.Reactions.define("lazyload", function () {
+    this.ownerElement.src = "https://via.placeholder.com/300";
+  });
+</script>
+<style>
+  img {
+    height: 100vh;
+    width: 100%;
+    border: 2px dotted orange;
+  }
+</style>
+
+<div>
+  <img inview:lazyload src="https://via.placeholder.com/150">
+  <img inview:lazyload src="https://via.placeholder.com/150">
+  <img inview:lazyload src="https://via.placeholder.com/150">
+</div>

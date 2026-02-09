@@ -1,0 +1,65 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+<script src="../src/triggers/AttrMachine.js"></script>
+<style>
+  .tooltip {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+  }
+  .tooltip.active {
+    display: block;
+  }
+</style>
+<div>
+  <div class="tooltip">Following the cursor</div>
+  <div class="hovered" style="border: solid; width: 50vw; height: 50vh;"
+    hoverable: 
+    hover-on:sibling:on
+    hover-move:sibling:move
+    hover-off:sibling:off
+  >
+  Hover me
+  </div>
+</div>
+
+<script>
+  document.Triggers.define("hoverable", class Hoverable extends AttrMachine{
+    static get stateMachine(){
+      return {
+        "": [
+          ["mouseenter", "enter", "on"]
+        ],
+        "on": [
+          ["mouseleave", "leave", ""],
+          ["mousemove", "move"]
+        ]
+      }
+    }
+    enter(e){
+      this.ownerElement.dispatchEvent(new e.contstructor("hover-on", e));
+      this.ownerElement.dispatchEvent(new e.contstructor("hover-move", e));
+    }
+    move(e){
+      this.ownerElement.dispatchEvent(new e.contstructor("hover-move", e));
+    }
+    leave(e){
+      this.ownerElement.dispatchEvent(new e.contstructor("hover-leave", e));
+    }
+  });
+
+  document.Reactions.define("sibling", function () {
+    return new EventLoop.ReactionOrigin(this.ownerElement.previousElementSibling);
+  });
+  document.Reactions.define("on", function () {
+    this.classList.add("active");
+  });
+  document.Reactions.define("off", function () {
+    this.classList.remove("active");
+  });
+  document.Reactions.define("move", function () {
+    const {clientX, clientY} = eventLoop.event;
+    this.style.left = clientX + "px";
+    this.style.top = clientY + "px";
+  });
+</script>

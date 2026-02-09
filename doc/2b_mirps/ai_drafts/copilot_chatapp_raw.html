@@ -1,0 +1,30 @@
+<!-- I want to build a chat app that uses websockets, that also uses doubledots.
+
+
+  The app should have:
+  - A chat window where users can see sent and received messages.
+  - A text input field where users can type messages.
+  - A send button that sends the message to the server.
+
+
+-->
+
+<body>
+  <div>
+    <div id="chat-window"></div>
+    <input type="text" id="message" />
+    <button id="send">Send</button>
+  </div>
+  <script>
+    const chatWindow = document.getElementById('chat-window');
+    const messageInput = document.getElementById('message');
+    const sendButton = document.getElementById('send');
+
+    sendButton.addEventListener('click', () => {
+      const message = messageInput.value;
+      chatWindow.innerHTML += `<div>You: ${message}</div>`;
+      messageInput.value = '';
+    });
+  </script>
+</body>
+</html>

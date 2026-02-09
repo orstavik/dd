@@ -1,0 +1,33 @@
+<script src="../../src/nativeEvents.js"></script>
+<script src="../../src/elementObserver2.js"></script>
+<script src="../../src/test-framework.js"></script>
+
+<div click:bob></div>
+
+<script id=one>
+  document.body.insertAdjacentHTML("afterbegin", "<h3 offline:something>else</h3>");
+</script>
+
+<div online:hello>number 2</div>
+
+<script id=two>
+  setTimeout(function () {
+    document.body.lastElementChild.innerHTML = "<h1 mousemove:santa>hello</h1>";
+  }, 1000);
+</script>
+
+<web-comp web-comp:one>one</web-comp>
+
+<script id=three>
+  class WebComp extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.innerHTML = "<p :bob:bob>hello sunshine</p>";
+    }
+  }
+  customElements.define("web-comp", WebComp);
+
+  document.body.insertAdjacentHTML("beforeend", "<web-comp web-comp:two>two</web-comp>");
+</script>
+<div> last child </div>

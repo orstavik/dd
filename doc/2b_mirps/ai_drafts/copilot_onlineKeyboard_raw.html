@@ -1,0 +1,62 @@
+<!-- I want to build an interactive online keyboard using doubledots
+
+The app needs to:
+-Display a keyboard with a qwerty layout
+-Display a text result display
+-Display a button to copy the text result to the clipboard
+
+
+-->
+
+<div id="keyboard">
+  <div class="row">
+    <div click:button>A</div>
+    <div click:button>S</div>
+    <div click:button>D</div>
+    <div click:button>F</div>
+    <div click:button>G</div>
+    <div click:button>H</div>
+    <div click:button>J</div>
+    <div click:button>K</div>
+    <div click:button>L</div>
+  </div>
+  <div class="row">
+    <div click:button>Z</div>
+    <div click:button>X</div>
+    <div click:button>C</div>
+    <div click:button>V</div>
+    <div click:button>B</div>
+    <div click:button>N</div>
+    <div click:button>M</div>
+  </div>
+  <div class="row">
+    <div click:button>Q</div>
+    <div click:button>W</div>
+    <div click:button>E</div>
+    <div click:button>R</div>
+    <div click:button>T</div>
+    <div click:button>Y</div>
+    <div click:button>U</div>
+    <div click:button>I</div>
+    <div click:button>O</div>
+    <div click:button>P</div>
+  </div>
+</div>
+
+<div id="result"></div>
+
+<div click:copyToClipboard>
+  <div>Copy to clipboard</div>
+</div>
+
+<script>
+  customReactions.define('button', (e,oi) => {
+    let letter = e.target.innerHTML;
+    document.getElementById('result').innerHTML += letter;
+  });
+
+  customReactions.define('copyToClipboard', (e,oi) => {
+    let result = document.getElementById('result').innerHTML;
+    navigator.clipboard.writeText(result);
+  });
+</script>

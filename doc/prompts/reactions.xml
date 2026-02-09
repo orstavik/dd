@@ -1,0 +1,631 @@
+<user>
+Doubledots uses attributes in HTML elements to react to events. Doubledots works by adding reactionchains as attributes to html elements. Each reactionchain is broken into two or more pieces separated by ':'. 
+
+## triggers: and :reaction:chains
+
+The first part of the reaction chain is the trigger. The trigger represents the event and is named after the the type of native events `click` or `focus` and other triggers such as type such as `hover` or `inview` or `attribute-changed`. The shorthand for trigger is adding the `:` as a postfix such as `click:` and `inview:`.
+
+After the trigger a series of reactions follow. Each reaction is a function that will run when the trigger: is activated. The reactions have different names, such as 'check-validity' or 'toggle-css-class'. The shorthand for referencing a reaction is adding a prefix ':' infront of the name such as ':check-validity'.
+
+For each trigger: several :reactions can be added sequentially. An example of this is: 'click:checkIfOk:extractData:updateValue' where: 
+
+1. The `click` is a trigger
+2. The `checkIfOk` is a filter reaction that validates the input
+3. The `extractData` is a extractor reaction that retrieves data from the DOM or someplace else
+4. The `updateValue` is an effect reaction that changes/mutates the value in the DOM
+
+## How do reaction chains function? 
+
+First, an event or timer or similar activates the trigger:. The trigger calls the first reaction and passes it the event. The first reaction runs, and passes its result to the second. Which then run and pass its result to the third reaction.
+
+Each reaction is defined as a JS function that takes two arguments: `(e , oi)`. The `e` is the event, and the `oi` is the Output from the previous reaction that becomes the Input for this reaction.
+
+```js
+customReaction.define('checkIfOk', function(e, oi){
+  // Perform validation and return
+});
+```
+
+## Categories of reactions
+
+- trigger: (click, in-view)
+- filter (read => to break):
+- extraction (read => to oi output):
+- effect (write => DOM):
+- side-effect (write => outside of DOM):
+- schedulers (throttle, debounce, setTimeout, ready)
+- pure reaction (pure, immutable functions that uses the `e` or the `oi` to form a new `oi` without mutating the incoming `e` or `oi`).
+
+
+
+Make me an example for how we can make a calculator using this system? Break the example into the following three parts.
+1. Layout the html needed for the example. Use minimal template, no css, and no JS.
+2. add functionality using only doubledots triggers and reactions in the html example.
+3. Explain the functionality of the triggers and reactions in plain english.
+4. Describe the roles the different reactions play, such as trigger, filter, extractor, mutator, effect, side-effect, schedular, pure reaction.
+</user>
+<system>
+# Demo: How to build a calculator 
+
+In this example we implement doubledots on a classic calculator. We start with a simple normal html template without any css or js code attached.
+
+## 1. Template first
+
+```html
+
+only the calculator, link to the css, table, no custom reaction nor script
+
+<html>
+  <head>
+    <title>Simple Calculator</title>
+    <link rel='stylesheet' href='./calc.css' type='text/css' />
+  </head>
+  <body>
+    <table id='calculator'>
+      <tr>
+        <td id='result'></td>
+      </tr>
+      <tr>
+        <td id='operation'></td>
+      </tr>
+      <tr>
+        <td id='input'></td>
+      </tr>
+      <tr>
+        <td class='operator'>C</td>
+      </tr>
+      <tr>
+        <td class='number'>1</td>
+        <td class='number'>2</td>
+        <td class='number'>3</td>
+        <td class='operator'>/</td>
+      </tr>
+      <tr>
+        <td class='number'>4</td>
+        <td class='number'>5</td>
+        <td class='number'>6</td>
+        <td class='operator'>*</td>
+      </tr>
+      <tr>
+        <td class='number'>7</td>
+        <td class='number'>8</td>
+        <td class='number'>9</td>
+        <td class='operator'>-</td>
+      </tr>
+      <tr>
+        <td class='number'>0</td>
+        <td class='number'>.</td>
+        <td class='operator'>=</td>
+        <td class='operator'>+</td>
+      </tr>
+    </table>
+  </body>
+</html>
+```
+
+## 2. Add first reaction
+
+The first reaciton is to add numbers to the input, when we click on a button inside the calculator. First, we do this by adding a the custom reaction `click:add_number` to the container parent that is the closest ancestor to all the elements involved.
+
+```html
+<table id='calculator' click:add_number>
+  . . .
+</table>
+<script>
+  customReactions.define('add_number', function (e, i) {
+    const input = this.ownerElement.querySelector('#input');
+    input.innerText += i;
+  });
+</script>
+```
+
+Problems: the reaction doesn't have a check. if you click something other than a number, we have errors.
+## 3. add filter
+
+How to fix this? we add a filter in the chain `click:is_number:add_number`
+
+```html
+<table id='calculator' click:add_number>
+  . . .
+</table>
+<script>
+  customReactions.define('is_number', function (e) {
+    if (['result', 'operation', 'input'].indexOf(e.target.id) >= 0) throw customReactions.break;
+    if (e.target.innerText.matches(/0-9/)) return e.target.innerText;
+    throw customReactions.break;
+  });
+  customReactions.define('add_number', function (e, i) {
+    const input = this.ownerElement.querySelector('#input');
+    input.innerText += i;
+  });
+</script>
+```
+## 4. add the operator function
+
+Let's build the entire calculator. Here we need to explain the logic with the previous operator and the hidden result etc. Once the strategy is explained, just add the extra custom reaction definitions, and the custom reaction invocations on the `<table>` element.
+
+```html
+<table id='calculator' _keypress:is_number:add_number>
+  . . .
+</table>
+<script>
+  customReactions.define('is_operator', function (e) {
+    if (['result', 'operation', 'input'].indexOf(e.target.id) >= 0) throw customReactions.break;
+    if (e.type === 'keypress') {
+      if (e.key === 'Esc') return 'clear';
+      if (['=', '+', '-', '/', '*'].indexOf(e.key) >= 0) return e.key;
+    }
+    if (e.type === 'click') {
+      const targetTxt = e.target.innerText;
+      if (['=', '+', '-', '/', '*', 'clear'].indexOf(targetTxt) >= 0) return targetTxt;
+    }
+    throw customReactions.break;
+  });
+  customReactions.define('do_operator', function (e, i) {
+    . . . (calculator logic) . . .
+  });
+</script>
+```
+
+## 5. add the keypress functionality
+
+With a calculator you want multiple events. Add reactions for keypress too.
+
+```html
+<table id='calculator' _keypress:is_number:add_number>
+  . . .
+</table>
+<script>
+  customReactions.define('is_number', function (e) {
+    if (['result', 'operation', 'input'].indexOf(e.target.id) >= 0) throw customReactions.break;
+    if (e.type === 'keypress' && e.key.matches(/0-9/)) return e.key;
+    if (e.type === 'click' && e.target.innerText.matches(/0-9/)) return e.target.innerText;
+    throw customReactions.break;
+  });
+  customReactions.define('add_number', function (e, i) {
+    const input = this.ownerElement.querySelector('#input');
+    input.innerText += i;
+  });
+</script>
+```
+</system>
+<user>
+Good example!
+
+Make an example of a shopping cart. The example illustrates how we can add items into a cart in HTML using Doubledots.  
+</user>
+<system>
+# Demo: Shoppingcart
+
+How to build a shopping cart using Doubledots? Easy! Set up the html template a shoppingcart, add the custom reactions you need, and then define them. This demo shows how you can extract data from the dom, and then use this data to add elements to the DOM. And how you can use Doubledots in your moneymaking schemes.
+
+## 1. HTML Template
+
+First, we start with a simple HTML layout. This template includes a list of products and a cart where items will be listed as they are added.
+
+```html
+<html>
+  <head>
+    <title>Shopping Cart Example</title>
+    <link rel='stylesheet' href='./style.css' type='text/css' />
+  </head>
+  <body>
+    <div id='products'>
+      <div class='product' data-id='1'>
+        Product 1 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <div class='product' data-id='2'>
+        Product 2 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <!-- Add more products as needed -->
+    </div>
+    <div id='cart'>
+      <h2>Shopping Cart</h2>
+      <div id='cart-items'></div>
+    </div>
+  </body>
+</html>
+```
+
+Note that we have a button for each item, but that the `data-id` are attached to a different element.
+
+## 2. Adding our first trigger:reaction
+
+Next, we incorporate our initial custom reaction: `click:add_to_cart`. To find out where to place it, we try to find a balance between the following requirements:
+1. *as close as possible* to the `target` of the `trigger:` event,
+2. *as close as possible* to any element that we need to either extract data from or mutate, and
+3. encompasses as many different trigger events as possible.
+
+
+In the template above, that is the `<div id='products' click:add_to_cart>`. This element is:
+1. the grandparent of the `<button>` target node (not super close, but ok),
+2. The parent of the `<div class='product'..>` elements that we need to extract the `data-id` attribute value from (parent node is close), and
+3. this grandparent will capture all the `click` events from all the `<button class='add-to-cart'>` elements (many-events => one-trigger, nice).
+
+```html
+  <body>
+    <div id='products' click:add_to_cart>
+      <div class='product' data-id='1'>
+        Product 1 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <div class='product' data-id='2'>
+        Product 2 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+```
+
+Balance struck!
+
+## 3. Analyzing the reaction chain
+
+The custom reactions usually perform many functions. When we first start analyzing a reaction, there are three different functions we look for:
+
+1. :filter. Do we need to ensure that the trigger we are receiving is *meant for* this reaction? This is especially true when we place the trigger on an ancestor of the `target` element of an event, such as in this case.
+
+2. :extractor. What data does the custom reaction need? In this example, we need to find the `data-id` near the button pressed.
+
+3. :transformer. Do we need to transform the data in any way before we do something with it? Here is your chance to make those excellent *puuuuure* functions.
+
+4. :effect or :side-effect. We likely want the reaction to do something with the data extracted. What and where?
+
+In this example, we need to:
+1. filter the `click` event so as to only accept `click`s on `<button class='add-to-cart'>` elements. => `:is-add-button`
+
+2. extract data from that button `target` => `:get-data-id`
+
+3. make the template for the product in the shopping cart => `:make-cart-product`
+
+4. add this product(id) to the cart => `:add-to-cart`
+
+```html
+  <body>
+    <div id='products' click:is-add-button:get-data-id:make-cart-product:add-to-cart>
+      <div class='product' data-id='1'>
+        Product 1 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <div class='product' data-id='2'>
+        Product 2 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+```
+
+## 4. Defining the reaction
+
+The last step is to define the reactions.
+
+```js
+// check if target is `button.add-to-cart`
+customReactions.define('is-add-button', function (e) {
+  if(!(e.target.matches('button.add-to-cart')))
+    return customReactions.break;
+});
+// get data-id
+customReactions.define('get-data-id', function (e) {
+  return e.target.parentNode.getAttribute('data-id');
+});
+// make the template to put in the shopping cart
+customReactions.define('make-cart-product', function (e, oi) {
+  return `<cart-product data-id='${oi}'>Product #${oi}</cart-product>`;
+});
+// add to cart
+customReactions.define('add-to-cart', function (e, oi) {
+  this.nextSiblingElement.insertAdjacentHtml('before-end', oi);
+});
+```
+
+## 5. shopping cart symposium
+
+```html
+<html>
+  <head>
+    <title>Shopping Cart Example</title>
+    <link rel='stylesheet' href='./style.css' type='text/css' />
+  </head>
+  <body>
+    <div id='products'>
+      <div class='product' data-id='1'>
+        Product 1 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <div class='product' data-id='2'>
+        Product 2 <button class='add-to-cart'>Add to Cart</button>
+      </div>
+      <!-- Add more products as needed -->
+    </div>
+    <div id='cart'>
+      <h2>Shopping Cart</h2>
+      <div id='cart-items'></div>
+    </div>
+  </body>
+  <script>
+    // check if target is `button.add-to-cart`
+    customReactions.define('is-add-button', function (e) {
+      if(!(e.target.matches('button.add-to-cart')))
+        return customReactions.break;
+    });
+    // get data-id
+    customReactions.define('get-data-id', function (e) {
+      return e.target.parentNode.getAttribute('data-id');
+    });
+    // make the template to put in the shopping cart
+    customReactions.define('make-cart-product', function (e, oi) {
+      return `<cart-product data-id='${oi}'>Product #${oi}</cart-product>`;
+    });
+    // add to cart
+    customReactions.define('add-to-cart', function (e, oi) {
+      this.nextSiblingElement.querySelector('#cart-items'*.insertAdjacentHtml('before-end', oi);
+    });
+  </script>
+</html>
+```
+
+1. When a user `click:` on an 'Add to Cart' button within `div#products`, the `click` triggers the reaction chain.
+2. First the `:is-add-button` filter ensures that the chain is only reacting to the relevant buttons.
+3. Then the `:get-data-id` uses the `target` of the `click` event to find the `data-id` attribute on the correct `div.product` element.
+4. Then the `:make-cart-product` processes the `id` to generate the right template we need to update the DOM.
+5. And finally, the `:add-to-cart` effect updates the `div#cart-items` to add the item to the cart.
+
+## 6. What did we learn?
+
+- **triggers:** enable us to react to native events.
+- **:filters** use the event, the DOM, and other sources to ensure that we are only reacting to relevant events.
+- **:extractors** helps us find the data that we need, most often from the DOM or the event.
+- **:transformers** can convert the data that we are working on into the form we need.
+- **:effects** uses data from the reaction chain to modify the DOM.    
+</system>
+<user>
+  Good example!
+  
+  Make a short example of a simple dropdown box, that echoes the functionality of `<details>` and `<summary>` tightly.
+
+</user>
+<system>
+# Demo: `<details open>` vs. `click:hidden`
+
+The native `<details>` and `<summary>` HTML elements are a good example of recurring problem, being given what feels like a kinda convoluted solution. The problem with the native `<details>` and `<summary>` solution is not that it doesn't work, but:
+1. you might want to use your own HTML elements, and not `<details><summary>`,
+2. you might need to control the trigger events so as to hide on `doubleclick` or `keypress[h]`,
+3. you might wish to hide only a single piece of content, hide everything, trigger the hiding from outside the container element, or
+4. something else.
+
+So, in that sense, the main problem with `<details>` and `<summary>` is that the technique solves a subset of all the tightly connected click-to-show-hide usecases.
+
+Doubledots to the rescue!
+
+## 1. HTML Layout
+
+First, we need to create the basic HTML structure. We'll have a container that acts as our dropdown, and within it, a summary element that when clicked, reveals or hides the content.
+
+```html
+<div>Thinking ahead</div>
+<div id='container'>
+  <div class='one'>One</div>
+  <div class='two'>Two</div>
+  <div class='three'>Three!</div>
+</div>
+```
+
+## 2. Adding Functionality with Doubledots
+
+Let's add a custom reaction that echo that of `<details><summary>`.
+
+```html
+<style>
+  :not([open]):not([click:parent-toggle-open]) { display: none; }
+</style>
+<div>Thinking ahead</div>
+<div id='container'>
+  <div class='one' click:parent-toggle-open>One</div>
+  <div class='two'>Two</div>
+  <div class='three'>Three!</div>
+</div>
+```
+
+A `click` on `div.one` will toggle the attribute `open` on the container element, which in turn will turn on/off the display of all non-first children. Nice. But. There are so many other alternatives too. Let's make some more:
+
+### hide (and unhide) next element
+
+```html
+<div click:next-toggle-hidden>Thinking ahead</div>
+<div id='container'>
+  <div class='one'>One</div>
+  <div class='two'>Two</div>
+  <div class='three'>Three!</div>
+</div>
+```
+
+A `click` will toggle the `hidden` attribute on the next element.
+
+### `doubleclick` to show a select few
+
+```html
+<style>
+  :not([even]) .even { display: none; }
+</style>
+<div>Thinking ahead</div>
+<div id='container' doubleclick:toggle-even>
+  <div class='one odd'>One</div>
+  <div class='two even'>Two</div>
+  <div class='three odd'>Three</div>
+  <div class='four even'>Four</div>
+  <div class='three odd'>Five!</div>
+</div>
+```
+
+Here, we use both a different trigger `doubleclick:` that more selectivly shows and hides elements. 
+
+## 3. defining reactions
+
+As there are many alternative use-cases for show-hide-toggles, there are many ways to implement them. Let's make some variants around the first `click:parent-toggle-open` example.
+
+### A simple, all-in-one `:parent-toggle-open`
+
+The first alternative is to just straight ahead implement a single reaction.
+
+```html
+...
+<div id='container'>
+  <div class='one' click:parent-toggle-open>One</div>
+  <div class='two'>Two</div>
+  ...
+</div>
+<script>
+  customReactions.define('parent-toggle-open', function(){
+    this.ownerElement.parentNode.attributes.toggleAttribute('open');
+  });
+</script>
+```
+
+### A dash and a rule
+
+Another alternative is to use the dash rule (`:-xyz`) and add our own `toggle-attr_` rule. Here, we are using two rules that you will find quickly becoming part of your core reaction rule registry. To see more about the `:-` dash rule, see the chapter on it; the `toggle-attr_` rule is implement in the example:
+
+```html
+...
+<div id='container'>
+  <div class='one' click:-p:toggle-attr_open>One</div>
+  <div class='two'>Two</div>
+  ...
+</div>
+<script>
+  customReactions.defineRule('toggle-attr_', function(name){
+    name = name.split('_')[1];
+    return function(e, oi){
+      this.toggleAttribute(name);
+      return oi;
+    };
+  });
+</script>
+```
+
+## What `rules` to follow?
+
+There are different ways to code. And different opinions on what makes for the most readable examples. But, regardless of which path you choose, it is useful to learn more about how reaction rules, and especially their use, can create dependencies in your code.
+
+In the example above, the `toggle-attr_` rule is implicitly using an `element` as `this`. When the reaction chain starts, the `this` is the origin attribute, and you *must* at some point *before* the `:toggle-attr_` reaction have another reaction that sets the origin `this` of the reaction chain to an element. Thus, there has to be a previous reaction like the `:-p` that has moved the reaction chain's origin to an element.
+
+This creates a dependency from the `:toggle-attr_` rule to:
+* at minimum an 'origin moving reaction style', or
+* more likely extensive use of the `:-` dash rule.
+
+So, there is no strong dependency from the `:toggle-attr_` rule to the `:-` rule, but there is a soft dependency.
+</system>
+<user>
+Great stuff! Can you give me a demo of an interactive table? Here, you must use the `:-` dash reaction rule at different points in the reaction rule to transpose the location of the different reactions to different nodes in the dom. In addition, the demo should discuss how to make more complex mutations of the DOM in a reaction, and how to pass and use data via the `oi` (output-input) reaction return/argument argument.
+
+The purpose of the demo is to illustrate how to make more complex reaction chains that use .
+</user>
+<system>
+# Demo: Sortable table
+
+Can we make Excel using Doubledots? In 5 lines of code? not really.. But! Can we make a sortable table in... around 25? Don't know. Let's try:D
+  
+The sortable table works like this. Each column in the sortable table has a header. When you `click` on that header, then the table will be sorted based on the values of that column. Ascending and descending. To make this work, the sortable table needs to move the `<tr>` up and down based on their value. And presto! Your little database turned `<table>` is suddenly a fully featured web app This is a common feature in many web applications, especially those that display tabular data, such as reports, lists, or databases.
+  
+## 1. HTML template only
+  
+We need a `<table>`, a row with column headers `<th>`, and rows with data fields `<td>`. We include a `data-sort` attribute on each `<th>` element to specify the column it represents.
+  
+```html
+<table id='myTable'>
+ <thead>
+    <tr>
+      <th data-sort='name'>Name</th>
+      <th data-sort='age'>Age</th>
+      <th data-sort='city'>City</th>
+    </tr>
+ </thead>
+ <tbody>
+    <tr>
+      <td>Alice</td>
+      <td>30</td>
+      <td>New York</td>
+    </tr>
+    <tr>
+      <td>Bob</td>
+      <td>25</td>
+      <td>Los Angeles</td>
+    </tr>
+    <tr>
+      <td>Charlie</td>
+      <td>35</td>
+      <td>Chicago</td>
+    </tr>
+ </tbody>
+</table>
+```
+  
+## 2. adding custom reactions
+  
+We add a custom reactions on the `<tr>` in the `<thead>`.
+  
+```html
+<table id='myTable'>
+ <thead click:-t:filter-data-sort:toggle-attr_desc:-next:sort-table>
+    <tr >
+      <th data-sort='name'>Name</th>
+      <th data-sort='age'>Age</th>
+      <th data-sort='city'>City</th>
+    </tr>
+ </thead>
+ <tbody>
+    <tr>
+      <td>Alice</td>
+      <td>30</td>
+      <td>New York</td>
+    </tr>
+ ...
+```
+  
+* `click:-t:filter-data-sort:toggle-attr_desc:-next:sort-table`
+  
+This is a *chain* of 5 reactions that all will be triggered when a `click` is registered within the `<tr>` that house the `<th>`:
+1. `:-t` transpose the origin of the reaction chain (ie. `this`) to the `e.target`.
+2. `:filter-data-sort` extracts the `data-sort` and `desc` attributes' value, and `break` the reaction chain if none present.
+3. `:toggle-attr_desc` toggles the `desc` attribute on/off on the `this` element (which the first reaction set to the `e.target`). The `:toggle-attr_desc` lets the `oi` argument just pass through it.
+4. `:-next` transposes the origin to `currentElement.nextSiblingElement`, ie. `<tbody>`.
+5. `:sort-table` receives the `oi` with the `data-sort` and `desc` value, and does *the work* of sorting its `<tr>` children up and down.
+  
+## 3. Defining the reactions
+  
+Next, we'll define a custom reaction in JavaScript that handles the sorting logic. Reaction 1. `:-t`, `:toggle-attr_desc`, and 4. `:-next` are given us by the dash `:-` and `:toggle-attr_desc` reaction rules, so we skip these.
+  
+```js
+customReactions.define('filter-data-sort', function(){
+  if(!this.hasAttribute('data-sort'))
+    return customReactions.break;
+  return [this.getAttribute('data-sort'), this.getAttribute('desc')];
+});
+
+customReactions.define('sort-table', function(e, oi) {
+  const [sortKey, desc] = oi;
+  const rows = Array.from(this.querySelectorAll('tr'));
+  rows.sort((a, b) => {
+    const one = a.querySelector(`data-sort='${sortKey}'`).textContent;
+    const two = b.querySelector(`data-sort='${sortKey}'`).textContent;
+    return one.localeCompare(two) * (desc ? -1 : 1);
+  });
+  rows.forEach(row => this.appendChild(row));
+});
+```
+  
+Nice! We can make a sortable table in DoubleDots with only 15 lines of code defining JS functions.
+  
+## Notes about DoubleDots
+  
+There are a couple of things to note here.
+1. The `oi` output-input argument in the reaction chain is useful to contain state that is meant for the reaction chain only. The `oi` is the `return` value of one `:reaction` that becomes the second argument for the next `:reaction`.
+2. We select the `<thead>` as the location for the reaction chain. This gives us the best balanced position between the (multiple) locations of the trigger(s) and the single location of the effect.
+3. The use of the `:-` dash rule gives us the ability to connect to the relevant locations in the DOM fairly easily.
+4. DoubleDots does *not* enable you to connect *loose* JS elements to the DOM. But. DoubleDots allows for moving elements *within* the same document root. So, if you need to add elements, use `.innerHTML`; if you need to remove elements, they will be removed permanently; and if you need to move elements, add them to their new location without removing them first."
+</system>
+<user>
+Excellent!
+In DoubleDots `setTimeout` and `setInterval` are deprecated. And so is `clearTimeout` and `clearInterval`. They are all replaced by a single `async` function `sleep(ms)` added to `window`.
+
+The reason `setTimeout` (and `setInterval`) are deprecated is: 
+1. When a callback is sent to `setTimeout`, the browser will run the callback in a new, separate frame (macro task).
+2. This macro-task is not simple for the virtual event loop to intercept.
+3. But if we instead `await sleep(10)` inside a `trigger:` or a `:reaction`, then the virtual event loop can control this async behavior in the same way as all the other async functions in the browser.
+
+Can you make me a demo for an egg timer? The egg timer should use a custom reaction rule called `:sleep_`. The egg timer should read an element with the innerText on format minutes:seconds, and then show a clock counting down as the innerText of another element. I also want you to add a short note about why DoubleDots uses `:sleep_1000` instead of `setTimeout`."
+</user>
+
+

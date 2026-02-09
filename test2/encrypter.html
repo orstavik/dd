@@ -1,0 +1,38 @@
+<script src="/dd.js"></script><script src="../../src/triggers/PropagationSimple.js"></script>
+
+<form submit:prevent:getvalues:encrypt:render>
+  <h1>Cesar Cypher</h1>
+  <h2>Place text to be cyphered:</h2>
+  <input type="text">
+  <h2>Number to shift</h2>
+  <input type="number">
+  <button type="submit">GO</button>
+  <div>
+    <h2>Your cyphered text is:</h2>
+    <p></p>
+  </div>
+</form>
+
+<script>
+  document.Reactions.define('prevent', function (e) {
+    e.preventDefault();
+  });
+  document.Reactions.define('getvalues', function () {
+    const inputs = this.ownerElement.querySelectorAll('input');
+    let response = [];
+    inputs.forEach(function (input) {
+      console.log(input.value);
+      response.push(input.value);
+    });
+    return response;
+  });
+  document.Reactions.define('encrypt', function (io) {
+    console.log(io)
+    return io[0].split('').map(function (char) {
+      return String.fromCharCode(char.charCodeAt(0) + io[1]);
+    }).join('');
+  });
+  document.Reactions.define('render', function (io) {
+    this.ownerElement.querySelector('p').textContent = io;
+  });
+</script>

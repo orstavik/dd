@@ -1,0 +1,63 @@
+<!-- I want to build an interactive online keyboard using doubledots
+
+The app needs to:
+-Display a keyboard with a qwerty layout
+-Display a text result display
+-Display a button to copy the text result to the clipboard
+
+-->
+
+<div id="keyboard" click:check-letter:-next:add-letter>
+  <div class="row">
+    <div>Q</div>
+    <div>W</div>
+    <div>E</div>
+    <div>R</div>
+    <div>T</div>
+    <div>Y</div>
+    <div>U</div>
+    <div>I</div>
+    <div>O</div>
+    <div>P</div>
+  </div>
+  <div class="row">
+    <div>A</div>
+    <div>S</div>
+    <div>D</div>
+    <div>F</div>
+    <div>G</div>
+    <div>H</div>
+    <div>J</div>
+    <div>K</div>
+    <div>L</div>
+  </div>
+  <div class="row">
+    <div>Z</div>
+    <div>X</div>
+    <div>C</div>
+    <div>V</div>
+    <div>B</div>
+    <div>N</div>
+    <div>M</div>
+  </div>
+</div>
+<div id="result"></div>
+<div click:-prev:copy-to-clipboard>
+  <div>Copy to clipboard</div>
+</div>
+
+<script>
+  customReactions.define('check-letter', (e,oi) => {
+    let letter = e.target.innerHTML;
+    return letter;
+  });
+  customReactions.define('add-letter', (e,oi) => {
+    let letter = oi;
+    this.innerHTML += letter;
+  });
+
+  customReactions.define('copy-to-clipboard', (e,oi) => {
+    let text = this.innerHTML
+    navigator.clipboard.writeText(result);
+  });
+</script>

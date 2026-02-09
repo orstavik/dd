@@ -1,0 +1,37 @@
+<!-- This is an example of making a drumkit with doubledots -->
+
+<div click:checkSound:playSound>
+  <div>Kick</div>
+  <div>Snare</div>
+  <div>Drum</div>
+</div>
+
+<script>
+  // The first step is to define the filter that will check the sound to be played
+  customReactions.define('checkSound', (e,oi) => {
+    console.log('checking sound');
+    if (e.target.innerHTML === 'Kick') {
+      return "Kick"
+    }
+    if (e.target.innerHTML === 'Snare') {
+      return "Snare"
+    }
+    if (e.target.innerHTML === 'Drum') {
+      return "Drum"
+    }
+  });
+
+  // The second step is to define the reaction that will play the sound
+  customReactions.define('playSound', (e,io) => {
+    console.log('playing sound');
+    if ( io === "Kick") {
+      Sound.play(Kick)
+    }
+    if ( io === "Snare") {
+      Sound.play(Snare)
+    }
+    if ( io === "Drum") {
+      Sound.play(Drum)
+    }
+  });
+</script>

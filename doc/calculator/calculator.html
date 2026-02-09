@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Calculator</title>
+    <link rel="stylesheet" href="./calc.css" type="text/css" />
+  </head>
+
+  <body>
+    <table id="calculator" click:is_number:add_number _keypress:is_number:add_number click:is_operator:do_operator _keypress:is_operator:do_operator>
+      <tr>
+        <td id="result"></td>
+        <td id="operation"> x </td>
+      </tr>
+      <tr>
+        <td id="input"></td>
+        <td class="operator">C</td>
+      </tr>
+      <tr>
+        <td class="number">1</td>
+        <td class="number">2</td>
+        <td class="number">3</td>
+        <td class="operator">/</td>
+      </tr>
+      <tr>
+        <td class="number">4</td>
+        <td class="number">5</td>
+        <td class="number">6</td>
+        <td class="operator">*</td>
+      </tr>
+      <tr>
+        <td class="number">7</td>
+        <td class="number">8</td>
+        <td class="number">9</td>
+        <td class="operator">-</td>
+      </tr>
+      <tr>
+        <td class="number">0</td>
+        <td class="number">.</td>
+        <td class="operator">=</td>
+        <td class="operator">+</td>
+      </tr>
+    </table>
+
+    <script>
+      // filters
+      // 1. illustrate how we retrieve data from the event and from the target in the dom.
+      //    no need to add lots of attribute or elements, if we can read the state directly
+      //    from either the event or the dom.
+      // 2. illustrate that we pass along the filtered output to the next reaction in the chain
+      //    and illustrate how we break the chain.
+      customReactions.define("is_number", function (e) {
+        //TODO MAKE BETTER CHECK
+        //TODO MAKE BETTER CHECK
+        if (["result", "operation", "input"].indexOf(e.target.id) >= 0) throw customReactions.break;
+        if (e.type === "keypress" && e.key.matches(/0-9/)) return e.key;
+        if (e.type === "click" && e.target.innerText.matches(/0-9/)) return e.target.innerText;
+        throw customReactions.break;
+      });
+      customReactions.define("is_operator", function (e) {
+        //TODO MAKE BETTER CHECK
+        //TODO MAKE BETTER CHECK
+        if (["result", "operation", "input"].indexOf(e.target.id) >= 0) throw customReactions.break;
+        if (e.type === "keypress") {
+          if (e.key === "Esc") return "clear";
+          if (["=", "+", "-", "/", "*"].indexOf(e.key) >= 0) return e.key;
+        }
+        if (e.type === "click") {
+          const targetTxt = e.target.innerText;
+          if (["=", "+", "-", "/", "*", "clear"].indexOf(targetTxt) >= 0) return targetTxt;
+        }
+        throw customReactions.break;
+      });
+
+      //reducers
+      //1. illustrate how we can get data from previous reactions using the `i` argument.
+      //2. illustrate how we can get dom nodes we can change.
+      //   Important tip: 1. add the reactions around both the trigger elements and the to-be-changed elements. This way, you can likely catch many triggers with the same custom reaction, and it is safe to find the right dom element with less chance of it being confused with another part of your dom. Add custom reactions to the shared ancestor.
+      customReactions.define("do_operator", function (e, i) {
+        const input = this.ownerElement.querySelector("#input");
+        const result = this.ownerElement.querySelector("#result");
+        const operation = this.ownerElement.querySelector("#operation");
+        // we queue operations to display the previous value and the next to be computed
+        // on each operation, we check if the is no input, only the queued operation is changed
+
+        function solve() {
+          const a = parseFloat(result.innerText);
+          const b = parseFloat(input.innerText);
+          if (operation.innerText === "+") {
+            result.innerText = a + b;
+          } else if (operation.innerText === "-") {
+            result.innerText = a - b;
+          } else if (operation.innerText === "/") {
+            result.innerText = a / b;
+          } else if (operation.innerText === "*") {
+            result.innerText = a * b;
+          }
+          input.innerText = "";
+          operation.innerText = "";
+        }
+
+        if (i === "clear") {
+          result.innerText = "";
+          input.innerText = "";
+          operation.innerText = "";
+          return;
+        }
+
+        // if neither value nor input available, do nothing.
+        if (input.innerText === "" && result.innerText === "") return;
+
+        // if there is no result, we set the result to the input and clear the input, also set the operation later.
+        if (result.innerText === "" && input.innerText !== "") {
+          result.innerText = input.innerText;
+          input.innerText = "";
+        }
+
+        // if there is a result, an input, and a queued operation, we compute the result and set the next operation later.'
+        if (result.innerText !== "" && input.innerText !== "" && operation.innerText !== "") {
+          solve();
+        }
+        
+        // CHECK IF SOLVING IS NEEDED
+        if (i === "=") {
+          solve();
+          return;
+        }
+
+        //if there is a result but not an input only change the operation to be computed next.
+
+        //By this point, we can be sure that the result is set, and the input is clear, and the operation can be changed.
+        if (i === "+") {
+          operation.innerText = "+";
+        } else if (i === "-") {
+          operation.innerText = "-";
+        } else if (i === "/") {
+          operation.innerText = "/";
+        } else if (i === "*") {
+          operation.innerText = "*";
+        }
+      });
+
+      customReactions.define("add_number", function (e, i) {
+        const input = this.ownerElement.querySelector("#input");
+        if (i === "." && input.innerText.indexOf(".") >= 0) return;
+        input.innerText += i;
+      });
+    </script>
+  </body>
+</html>

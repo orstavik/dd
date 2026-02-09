@@ -1,0 +1,39 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+<style>
+  .tooltip {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+  }
+  .tooltip.active {
+    display: block;
+  }
+</style>
+<div>
+  <div class="tooltip">Following the cursor</div>
+  <div class="hovered" style="border: solid; width: 50vw; height: 50vh;"
+   mouseenter:sibling:on:move 
+   mousemove:sibling:move
+   mouseleave:sibling:off
+  >
+  Hover
+  </div>
+</div>
+
+<script>
+  document.Reactions.define("sibling", function () {
+    return new EventLoop.ReactionOrigin(this.ownerElement.previousElementSibling);
+  });
+  document.Reactions.define("on", function () {
+    this.classList.add("active");
+  });
+  document.Reactions.define("off", function () {
+    this.classList.remove("active");
+  });
+  document.Reactions.define("move", function () {
+    const {clientX, clientY} = eventLoop.event;
+    this.style.left = clientX + "px";
+    this.style.top = clientY + "px";
+  });
+</script>

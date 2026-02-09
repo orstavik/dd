@@ -1,0 +1,20 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+
+<div>
+  <h1>Text Editor Example</h1>
+  <textarea id="texteditor" style="width: 100%; height: 200px;"></textarea>
+  <button click:save>Save</button>
+  <button click:load>Load</button>
+  <script>
+    document.Reactions.define('save', function() {
+      console.log('Save')
+      localStorage.setItem('texteditor', this.ownerElement.parentElement.querySelector('textarea').value)
+    })
+
+    document.Reactions.define('load', function() {
+      console.log('Load')
+      this.ownerElement.parentElement.querySelector('textarea').value = localStorage.getItem('texteditor')
+    })
+  </script>
+</div>

@@ -1,0 +1,61 @@
+<script src="/dd.js"></script>
+<script src="../../src/triggers/PropagationSimple.js"></script>
+
+<form submit:prevent-default:validate:randompick:compare:render>
+  <h1>Rock Paper Scissors</h1>
+  <p>Player Choose:<span id="player"></span></p>
+  <p>Computer Choose:<span id="computer"></span></p>
+
+  <h2 id="status"></h2>
+  <input type="radio" name="choose" id="rock" />
+  <label for="rock">Rock</label>
+  <br>
+  <input type="radio" name="choose" id="paper" />
+  <label for="paper">Paper</label>
+  <br>
+  <input type="radio" name="choose" id="scissors" />
+  <label for="scissors">Scissors</label>
+  <br>
+  <button type="submit">Play</button>
+</form>
+<script>
+  document.Reactions.define("prevent-default", _ => eventLoop.event.preventDefault());
+  document.Reactions.define("validate", function() {
+    console.log("validate");
+    const player = this.ownerElement.querySelector('input[name="choose"]:checked');
+    console.log(player);
+    if (!player) {
+      alert("Please choose one");
+    }
+    return player.id;
+  });
+  
+  document.Reactions.define("randompick", (io) => {
+    console.log("randompick");
+    const choices = ["rock", "paper", "scissors"];
+    const computer = choices[Math.floor(Math.random() * choices.length)];
+    return [io, computer];
+  });
+  
+  document.Reactions.define("compare", function (io) {
+    console.log("compare");
+    console.log(io);
+    const [player, computer] = io;
+    const fields = this.ownerElement.querySelectorAll('span');
+    fields[0].innerText = player;
+    fields[1].innerText = computer;
+    const status = this.ownerElement.querySelector('h2');
+    if (player === computer) {
+      status.innerText = 'Draw';
+    } else if (
+      (player === 'rock' && computer === 'scissors') ||
+      (player === 'paper' && computer === 'rock') ||
+      (player === 'scissors' && computer === 'paper')
+    ) {
+      status.innerText = 'Player Wins';
+    } else {
+      status.innerText = 'Computer Wins';
+    }
+  });
+
+</script>

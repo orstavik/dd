@@ -1,0 +1,27 @@
+<script src="/dd.js"></script><script src="../../src/triggers/PropagationSimple.js"></script>
+
+<div>
+  <button
+    click::load-json:displayone:hasdelivery:sleep_2000:displaytwo="https://v2.jokeapi.dev/joke/Programming?blacklistFlags=nsfw,religious,political,racist,sexist,explicit">LOAD
+    JOKE</button>
+  <section></section>
+</div>
+
+<script>
+  document.Reactions.defineRule("sleep_", function (fullname) {
+    const ms = parseInt(fullname.split("_")[1]);
+    return async oi => (await DoubleDots.sleep(ms), oi);
+  });
+  document.Reactions.define("load-json", async function (_) {
+    return await (await fetch(this.value)).json();
+  });
+  document.Reactions.define("displayone", function (oi) {
+    this.ownerElement.nextElementSibling.innerHTML = `<p>${oi.setup || oi.joke}</p>`;
+    return oi;
+  });
+  document.Reactions.define("displaytwo", function (oi) {
+    this.ownerElement.nextElementSibling.innerHTML = `<p>${oi.setup}</p><p>${oi.delivery}</p>`;
+    return oi;
+  });
+  document.Reactions.define("hasdelivery", oi => oi.delivery ? oi : EventLoop.Break);
+</script>

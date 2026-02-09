@@ -1,0 +1,21 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/ObserverMutationTriggers.js"></script>
+<script>
+  document.Reactions.defineRule("toggle-class_", function (fullname) {
+    const c = fullname.split("_")[1];
+    return function toggleClass(oi) {
+      this.ownerElement.classList.toggle(c);
+      return oi;
+    };
+  });
+</script>
+
+<style>
+  summary { border: 2px solid yellow; }
+  .glow { border-color: orange; }
+</style>
+
+<details>
+  <summary p-attr_open:toggle-class_glow>hello</summary>
+  <div>sunshine</div>
+</details>

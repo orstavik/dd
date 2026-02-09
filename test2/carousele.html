@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+
+<style>
+  .carousele,
+  .carouseleCont {
+    display: flex;
+    gap: 20px;
+  }
+
+  .carouseleCont {
+    overflow: hidden;
+    width: 400px;
+    height: 300px;
+    position: relative;
+  }
+  .cItem {
+    width: 210px;
+    height: 210px;
+    overflow: hidden;
+    position: absolute;
+    flex-shrink: 0;
+    top: 50px;
+    transition: all 0.5s;
+  }
+  .cItem[place="1"] {	
+    left: 40%;
+    transform: translateX(-50%);
+    z-index: -1;
+  }
+  .cItem[place='2'] {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .cItem[place='3'] {
+    left: 60%;
+    transform: translateX(-50%);
+    z-index: -1;
+  }
+</style>
+
+<script>
+  function moveLeft() {
+    let items = this.ownerElement.parentElement.getElementsByClassName("cItem");
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i];
+      let number = Number(item.getAttribute("place"));
+      if (number === 3) {
+        number = 1;
+      } else {
+        number = number + 1;
+      }
+      item.setAttribute("place", number);
+    }
+  }
+  
+  function moveRight() {
+    let items = this.ownerElement.parentElement.getElementsByClassName("cItem");
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i];
+      let number = Number(item.getAttribute("place"));
+      if (number === 1) {
+        number = 3;
+      } else {
+        number = number - 1;
+      }
+      item.setAttribute("place", number);
+    }
+  }
+
+  document.Reactions.define("right", moveRight);
+  document.Reactions.define("left", moveLeft);
+</script>
+<h2>Carousele Example</h2>
+
+<div class="carousele">
+  <button id="Left" click:left><</button>
+  <div class="carouseleCont">
+    <div place=1 class="cItem">
+      <img src="https://via.placeholder.com/200" alt="" style="border: green solid 1px" />
+    </div>
+    <div place=2 class="cItem">
+      <img src="https://via.placeholder.com/200" alt="" style="border: blue solid 1px" />
+    </div>
+    <div place=3 class="cItem">
+      <img src="https://via.placeholder.com/200" alt="" style="border: red solid 1px" />
+    </div>
+  </div>
+  <button id="Right" click:right>></button>
+</div>

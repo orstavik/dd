@@ -1,0 +1,43 @@
+<!-- This is an example of an Infinite loading list using double dots -->
+
+
+<!-- First we lay out the HTML template -->
+<body>
+  <h1>Infinite Scroll Example</h1>
+
+  <div id="grid"></div>
+  <!--We add the div we will observe (naming the trigger inView) to load more (naming the reaction like so)-->
+  <div inView:loadmore>Loading</div>
+  
+  <script>
+
+    //Define the inView state machine
+    class inView extends Attr{
+    
+    }
+
+    //load more reaction appends 10 items to the grid
+    customReaction.define('loadMore', () => {
+      const grid = this.ownerElement.previousElementSibling
+
+      for (let i = 0; i < 10; i++) {
+        const div = document.createElement('div')
+        div.innerText = `Item ${i}`
+        div.setAttribute('inView:render', 'click:modalOpen')
+        div.style.opacity = '0'
+        grid.appendChild(div)
+      }
+    })
+
+    //make each element visible when it is in view
+    customReaction.define('render', () => {
+      this.ownerElement.style.opacity = '1'
+    })
+
+    //mock funtcionality for opening a modal
+    customReaction.define('modalOpen', () => {
+      const number = this.ownerElement.innerText.split(' ')[1]
+      alert(`Modal Opened for ${number}`)
+    })
+  </script>
+</body>

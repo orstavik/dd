@@ -1,0 +1,79 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+
+<style>
+  .tool {
+    border: solid;
+    width: 50vw;
+    height: 50vh;
+  }
+
+  .tip {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+    top: var(--client-y);
+    left: var(--client-x);
+  }
+
+  .tool.hover>.tip {
+    display: block;
+  }
+</style>
+<div>
+  <div class="tool" hover:log>
+    Hover me
+    <div class="tip">Following the cursor</div>
+  </div>
+</div>
+
+<script>
+  (function ({ addEventListener, removeEventListener }) {
+    class Hover extends AttrListener {
+      upgrade() {
+        this._enter = e => this.enter(e);
+        this._move = e => this.move(e);
+        this._leave = e => this.leave(e);
+        addEventListener.call(this.ownerElement, "mouseenter", this._enter, true);
+      }
+
+      remove() {
+        removeEventListener.call(this.ownerElement, "mouseenter", this._enter, true);
+        removeEventListener.call(this.ownerElement, "mousemove", this._move, true);
+        removeEventListener.call(this.ownerElement, "mouseleave", this._leave, true);
+      }
+
+      enter(e) {
+        removeEventListener.call(this.ownerElement, "mouseenter", this._enter, true);
+        addEventListener.call(this.ownerElement, "mouseleave", this._leave, true);
+        addEventListener.call(this.ownerElement, "mousemove", this._move, true);
+        this.move(e);
+      }
+
+      move(e) {
+        DoubleDots.nextTick(_ => {
+          this.ownerElement.style.setProperty("--client-x", `${e.clientX}px`);
+          this.ownerElement.style.setProperty("--client-y", `${e.clientY}px`);
+          this.ownerElement.classList.add("hover");
+          if (this.reactions.length)
+            eventLoop.dispatch(new e.constructor("hover", e), this);
+        });
+      }
+
+      leave(e) {
+        addEventListener.call(this.ownerElement, "mouseenter", this._enter, true);
+        removeEventListener.call(this.ownerElement, "mousemove", this._move, true);
+        removeEventListener.call(this.ownerElement, "mouseleave", this._leave, true);
+        DoubleDots.nextTick(_ => {
+          this.ownerElement.classList.remove("hover");
+          if (this.reactions.length)
+            eventLoop.dispatch(new e.constructor("hover", e), this);
+        });
+      }
+    }
+    document.Triggers.define("hover", Hover);
+
+  })(DoubleDots.nativeMethods("EventTarget.prototype"));
+
+  document.Reactions.define("log", e => console.log(e));
+</script>

@@ -1,0 +1,27 @@
+<script src="/dd.js"></script>
+<script src="../src/triggers/PropagationSimple.js"></script>
+<script src="../src/reactions/dash-rule.js"></script>
+
+<h1>Todo app</h1>
+<p>add elements with the input below, remove them with a click</p>
+<div id="container">
+  <div>
+    <input type="text" />
+    <button click:-left0:validate:make-p:-up1:add>add</button>
+  </div>
+  <p click:remove>Test todo 1</p>
+</div>
+
+<script>
+  document.Reactions.define("validate", function (oi) {
+    if (this.value)
+      return this.value;
+    alert("Please enter a value");
+    return EventLoop.break;
+  });
+  document.Reactions.define("make-p", todo => `<p click:remove>${todo}</p>`);
+  document.Reactions.define("add", function (txt) {
+    this.insertAdjacentHTML("beforeend", txt);
+  });
+  document.Reactions.define("remove", e => e.target.remove());
+</script>

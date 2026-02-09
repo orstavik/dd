@@ -1,0 +1,10 @@
+<script src="../../src/nativeEvents.js"></script>
+<script>
+
+  for (t of ["nativeElementEvents", "nativeDocumentEvents", "nativeWindowEvents"]) {
+    events = [...Event[t]()];
+    console.log(t +" "+ events.length);
+    for (let e of events) 
+      console.log(e);
+  }
+</script>

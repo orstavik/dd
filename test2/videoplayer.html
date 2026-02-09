@@ -1,0 +1,20 @@
+<script src="/dd.js"></script><script src="../../src/triggers/PropagationSimple.js"></script>
+
+<div>
+  <video id="video" width="320" height="240">
+    <source
+      src="https://v3.cdnpk.net/videvo_files/video/premium/partners0465/large_watermarked/BB_ba03a1b9-f527-4458-8381-6ca0b78fd693_preview.mp4"
+      type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <br>
+  <button id="play" click:get-video:play>Play</button>
+  <button id="pause" click:get-video:pause>Pause</button>
+  <button id="stop" click:get-video:pause:reset>Stop</button>
+</div>
+<script>
+  document.Reactions.define("get-video", _ => document.querySelector("#video"));
+  document.Reactions.define("play", video => (video.play(), video));
+  document.Reactions.define("pause", video => (video.pause(), video));
+  document.Reactions.define("reset", video => (video.currentTime = 0, video));
+</script>

@@ -1,0 +1,49 @@
+<!-- This is an example of a simple todo app using doubledots
+
+  The app has a form to add a todo, a list of todos, and a button to clear all todos.
+  If a todo is clicked, it is removed from the list.
+
+-->
+
+<!-- First we lay out the HTML template -->
+<body>
+
+  <h1>Todo Example</h1>
+
+  <form submit:addTodo>
+    <input type="text" id="todo" placeholder="Add a todo" />
+    <button type="submit">Add</button>
+  </form>
+
+  <ul id="todos">
+    <li click:removeTodo>Todo 1</li>
+    <li click:removeTodo>Todo 2</li>
+    <li click:removeTodo>Todo 3</li>
+  </ul>
+
+  <button click:clearTodos>Clear All</button>
+
+  <script>
+    //add a todo to the list
+    customReactions.define('addTodo', function (e) {
+      e.preventDefault()
+      const input = this.ownerElement.querySelector('#todo')
+      const todos = this.ownerElement.nextElementSibling
+      const li = document.createElement('li')
+      li.innerText = input.value
+      li.setAttribute('click:removeTodo')
+      todos.appendChild(li)
+      input.value = ''
+    })
+
+    //remove a todo from the list
+    customReactions.define('removeTodo', function (e) {
+      this.ownerElement.remove()
+    })
+
+    //clear all todos
+    customReactions.define('clearTodos', function (e) {
+      const todos = this.ownerElement.previousElementSibling
+      todos.innerHTML = ''
+    })
+  </script>

@@ -1,0 +1,71 @@
+<!-- This is an example of a registry using doubledots: -->
+
+<!-- First, we lay out the HTML -->
+<body>
+  <h1>Registry example</h1>
+  <!-- The click trigger will check the fields are ok, check that the click is in the submitbutton, and if so, submit the form and log the response. Thus the attribute 'click:passVal:fileVal:submit:log' -->
+  <form click:passVal:fileVal:submit:log>
+    <input type="text" id="user" placeholder="user" />
+    <input type="text" id="password" placeholder="password" change:passVal />
+    <input type="text" id="passwordconf" placeholder="passwordconf" change:passVal />
+    <input type="file" id="profile" name="profile" change:fileVal />
+    <button type="submit" id="submit">Submit</button>
+  </form>
+
+  <script>
+    customReactions.define("passVal", function (e) {
+      const password = document.getElementById("password").value;
+      const passwordconf = document.getElementById("passwordconf").value;
+
+      //builtin regex for input type=text form validation
+      if (password.length <= 8) {
+        this.ownerElement.addClass("invalid");
+        return customReactions.break;
+      }
+      if (password !== passwordconf) return customReactions.break;
+    });
+
+    customReactions.define("fileVal", function (e) {
+      let profile = document.getElementById("profile").files[0];
+      if (profile.size > 1000000) {
+        this.ownerElement.addClass("tooBig");
+        return customReactions.break;
+      }
+      if (profile.filetype !== "image/png") {
+        // throw new Error("wrong file type");
+        return customReactions.break;
+      }
+    });
+
+    // async effect, so we should have click:button_filter::submit:log
+    //
+
+    customReactions.define("submit", async function (e) {
+      // e.preventDefault(); not needed
+
+      // if not in the submit button, break the chain
+      // this should be a filter, even in the simplest method
+      // why? why have it separate, and not just in a single reaction.
+
+      // 1. readability in the dom. event:filter:effect, this is what people expect.
+
+      // 2. reusability. There are ready made filters and effects for this kind of use-case. So if you do the normal filter and normal effect, you can reuse code.
+
+      // 3. composeability. It is easier to maintain and further develop the submit reaction with the server requirements, if kept alone and when it doesn't involve html template requirements. Similarly, it is easier to maintain the html template and the template oriented filters, if we do not have to think about server communication and requirements at the same time.
+
+      if (e.target.id !== "submit") return customReactions.break;
+
+      const response = await fetch("/api/register", {
+        method: "POST",
+        body: new FormData(this.ownerElement),
+      });
+      const data = await response.json();
+      if (data.error)
+        //is the .error an Error instance??
+        throw new NetworkError(data.error); //todo research what type of error object to be thrown
+      return data;
+    });
+
+    customReactions.define("log", console.log);
+  </script>
+</body>

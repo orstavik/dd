@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      .carousele, .carouseleCont {
+        display: flex;
+        gap: 20px;
+      }
+
+      .carouseleCont {
+        overflow: hidden;
+        width: 400px;
+        height: 300px;
+        position: relative;
+      }
+      .cItem {
+        width: 210px;
+        height: 210px;
+        overflow: hidden;
+        position: absolute;
+        flex-shrink: 0;
+        top: 50px;
+        transition: all 0.5s;
+      }
+      .cItem1 {
+        left: 40%;
+        transform: translateX(-50%);
+        z-index: -1;
+      }
+      .cItem2 {
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .cItem3 {
+        left: 60%;
+        transform: translateX(-50%);
+        z-index: -1;
+      }
+    </style>
+
+    <script>
+      function moveLeft() {
+        let items = document.getElementsByClassName("cItem");
+        for (let i = 0; i < items.length; i++) {
+          let item = items[i];
+          let className = item.className;
+          let number = className.charAt(className.length - 1);
+          number = parseInt(number);
+          if (number === 3) {
+            number = 1;
+          } else {
+            number = number + 1;
+          }
+          item.className = "cItem " + "cItem" + number;
+        }
+      }
+
+      function moveRight() {
+        let items = document.getElementsByClassName("cItem");
+        for (let i = 0; i < items.length; i++) {
+          let item = items[i];
+          let className = item.className;
+          let number = className.charAt(className.length - 1);
+          number = parseInt(number);
+          if (number === 1) {
+            number = 3;
+          } else {
+            number = number - 1;
+          }
+          item.className = "cItem " + "cItem" + number;
+        }
+      }
+
+      customReactions.define('rightBtn', moveRight);
+      customReactions.define('leftBtn', moveLeft);
+
+    </script>
+  </head>
+  <body>
+    <h2>Carousele Example</h2>
+
+    <div class="carousele">
+      <button id="Left" click:leftBtn><</button>
+      <div class="carouseleCont">
+        <div class="cItem cItem1" >
+          <img src="https://via.placeholder.com/200" alt="" style="border: green solid 1px;"/>
+        </div>
+        <div class="cItem cItem2">
+          <img src="https://via.placeholder.com/200" alt="" style="border: blue solid 1px;"/>
+        </div>
+        <div class="cItem cItem3">
+          <img src="https://via.placeholder.com/200" alt="" style="border: red solid 1px;"/>
+        </div>
+      </div>
+      <button id="Right" click:rightBtn>></button>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+<!-- I want to make an example of a rock paper scrissors application
+
+  -It will have 3 buttons, one for each option
+  -Once a button is clicked, the computer will randomly choose one of the 3 options
+  -The user input and the computer input will be compared
+  -The result will be displayed on the screen
+  -The user will be able to play again
+-->
+
+<div click:game-logic:-next:render-result>
+  <div>Rock</div>
+  <div>Paper</div>
+  <div>Scissors</div>
+</div>
+
+<div id="result"></div>
+
+<script>
+  customReactions.define('game-logic', (e,oi) => {
+    let userChoice = e.target.innerHTML;
+    let options = ["Rock", "Paper", "Scissors"];
+    let computerChoice = options[Math.floor(Math.random() * options.length)];
+    if (userChoice === computerChoice) {
+      return "TIE";
+    } else if (
+      (userChoice === "Rock" && computerChoice === "Scissors") ||
+      (userChoice === "Paper" && computerChoice === "Rock") ||
+      (userChoice === "Scissors" && computerChoice === "Paper")
+    ) {
+      return "WIN";
+    } else {
+      return "LOSE";
+    }
+  });
+
+  customReactions.define('render-result', (e,oi) => {
+    let result = oi;
+    // can add css clases for fancy styling
+    this.innerHTML = result;
+  });
+</script>

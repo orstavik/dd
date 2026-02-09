@@ -1,0 +1,18 @@
+{
+  "role": "user",
+  "content": "Great stuff! Can you give me a demo of the trigger `hover:`. The `hover` uses the customReactions.defineTrigger that takes a similar name input as a reactionRule, but that accepts a class that `extends Attr` with an upgrade(name) method instead of a higher order function.
+
+  ```js
+customReactions.defineTrigger('hover', class HoverTrigger extends Attr {
+  upgrade(name){
+    
+  }
+});
+```
+
+The demo uses the `hover:` trigger to toggle a css class on the element being hovered to alter the mouse pointer to something else.
+
+
+The purpose of the demo is to illustrate how triggers are made."
+}
+]

@@ -1,0 +1,10 @@
+<body>
+  <h1>Theme Toggle Example</h1>
+
+  <button click:themeTogle>Toggle Theme</button>
+  <script>
+    customReaction.define('themeTogle', () => {
+      document.body.classList.toggle('dark')
+    })
+  </script>
+</body>

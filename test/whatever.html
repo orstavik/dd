@@ -1,0 +1,12 @@
+<details test:="bob" ttst:>
+  <summary>dblclick me</summary>
+  hello sunshine
+</details>
+
+<script>
+  const el = document.querySelector("details");
+  el.addEventListener("click", e => console.log(e.type, e.composedPath(), el.hasAttribute("open")));
+  el.addEventListener("dblclick", e => el.remove());
+  el.addEventListener("dblclick", e => console.log(e.type, e.composedPath(), el.hasAttribute("open")));
+  el.addEventListener("toggle", e => console.log(e.type, e.composedPath(), el.hasAttribute("open")));
+</script>

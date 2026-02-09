@@ -1,0 +1,47 @@
+<!-- I want to build a  notification reviever using server events, made with doubledots
+
+  The display has:
+  - a display of ongoing notifications
+  - a button to clear all notifications
+
+  When a notification is clicked, it is removed from the list.
+
+
+  COPILOT MADE THIS ON ITS OWN COMPLETELY. I DID NOT WRITE ANY CODE. I ONLY PROVIDED THE DESCRIPTION ABOVE AND DESCRIBED THE STATE MACHINE BELOW.
+-->
+
+<body>
+
+  <h1>Notification Example</h1>
+
+  <ul id="notifications" click:remove-notification>
+    <li>Notification 1</li>
+    <li>Notification 2</li>
+    <li>Notification 3</li>
+  </ul>
+
+  <button click:clear-all>Clear All</button>
+
+  <script>
+    //add event source to receive notifications
+    class EventSource extends Attr {
+      upgrade() {
+        this.source = new EventSource(this.getAttribute('url'))
+        this.source.onmessage = (event) => {
+          const notifications = this.ownerElement
+          notifications.innerHTML += `<li>${event.data}</li>`
+        }
+      }
+    }
+    
+    //remove a notification from the list
+    customReactions.define('remove-notification', function (e) {
+      e.target.remove()
+    })
+
+    //clear all notifications
+    customReactions.define('clear-all', function (e) {
+      const notifications = this.ownerElement.previousElementSibling
+      notifications.innerHTML = ''
+    })
+  </script>

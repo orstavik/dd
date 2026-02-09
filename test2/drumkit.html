@@ -1,0 +1,33 @@
+<script src="/dd.js"></script><script src="../../src/triggers/PropagationSimple.js"></script>
+
+
+<style>
+  button {
+    width: 100px;
+    height: 100px;
+    border: solid;
+    border-radius: 50%;
+  }
+</style>
+
+<script>
+  document.Reactions.define("this-sound", function () {
+    return this.ownerElement.innerText[0];
+  });
+  document.Reactions.define("key-sound", e => e.key);
+  document.Reactions.define("play-sound", function (name) {
+    const audio = document.querySelector(`audio[name="${name.toLowerCase()}"]`);
+    audio.currentTime = 0;
+    audio.play();
+  });  
+</script>
+
+<audio name="k" src="./static/kick.ogg"></audio>
+<audio name="s" src="./static/snare.ogg"></audio>
+<audio name="d" src="./static/drum.ogg"></audio>
+
+<div _keypress:key-sound:play-sound>
+  <button click:this-sound:play-sound><u>K</u>ick</button>
+  <button click:this-sound:play-sound><u>S</u>nare</button>
+  <button click:this-sound:play-sound><u>D</u>rum</button>
+</div>

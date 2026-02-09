@@ -1,0 +1,19 @@
+<script>
+  let j = 0;
+function infiniteLoopFunction() {
+    return new Promise((resolve) => {
+        // Simulate some asynchronous operation, e.g., waiting for 1 second
+        setTimeout(() => {
+            console.log(j++);
+            resolve();
+        }, 5);
+    }).then(() => {
+        // Once the promise resolves, call the function again
+        infiniteLoopFunction();
+    });
+}
+
+// Start the loop
+infiniteLoopFunction();
+
+</script>
