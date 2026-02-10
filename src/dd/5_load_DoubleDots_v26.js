@@ -14,41 +14,44 @@ const setTimeoutOG = window.setTimeout;
   window.cancelIdleCallback ??= clearTimeout;
 })();
 
-//gc of downgraded elements
-const dGrade = (function () {
-
-  function idleCallback(options = {}) {
-    return new Promise(r => { requestIdleCallback(deadline => r(deadline), options); });
-  }
-
-  function removeAttr(el) {
-    for (const at of DoubleDots.walkAttributes(el)) {
-      try {
-        at.remove?.();
-      } catch (e) {
-        console.warn(`Error during garbagecollection: ${Object.getPrototypeOf(n.attributes[0]).name}.remove()`, e);
+const downGrades = new Map();
+setInterval(function gc() {
+  for (const [portal, set] of downGrades.entries()) {
+    for (const at of set) {
+      if (!at.isConnected) {
+        set.delete(at);
+        portal.onDisconnect.call(at);
       }
     }
+    if (!set.size)
+      downGrades.delete(portal);
   }
+}, 1000);
 
-  const dGrade = new Set();
+function doOnConnect(at, portal) {
+  if (portal === null || portal.onConnect == null)
+    return;                             //if portal === null, then trigger inactive, we simply abort onConnect
+  if (portal instanceof Promise)        //just try again when the portal has resolved.
+    return portal.then(p => at.ownerElement.isConnected && doOnConnect(at, p));
 
-  (async function () {
-    while (true) {
-      const deadline = await idleCallback();
-      const ns = Array.from(dGrade);
-      for (let i = 0; i < ns.length && (dGrade.size > 99 || deadline.timeRemaining() > 33); i++)
-        removeAttr(ns[i]), dGrade.delete(ns[i]);
-      await new Promise(r => setTimeoutOG(r, 3000 / (dGrade.size + 1))); // i:100 => 30ms  /  i:1 => 3000ms
-    }
-  })();
-  return dGrade;
-})();
+  //todo this should trigger a eventLoopCube event.
+  if (portal instanceof Error)
+    return console.error("Error connecting trigger: " + at + " portal definition error: " + portal.message);
+  if (portal.properties)
+    Object.defineProperties(at, portal.properties);
+  portal.onConnect.call(at);
+  if ("onDisconnect" in portal) {
+    const set = downGrades.get(portal) ?? new Set();
+    set.add(at);
+    downGrades.set(portal, set);
+  }
+  //todo this should be registered in the event loop cube
+}
 
-function upgradeBranch(...els) {
+function connectBranch(els) {
   for (let el of els)
     for (const at of DoubleDots.walkAttributes(el))
-      AttrCustom.upgrade(at);
+      doOnConnect(at, at.ownerElement.getRootNode().portals.get(at.name));
 }
 
 (function () {
@@ -65,171 +68,85 @@ function upgradeBranch(...els) {
   }
 
   function upgradeables(parent, ...args) {
-    if (dGrade.has(parent.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot get new objects. Is pointless.");
-
-    const res = [];
-    if (!parent.isConnected) {
-      for (const a of args) {
-        if (a.isConnected)
-          throw new Error("Downgraded objects cannot be reinjected. Here, you are taking an upgraded object and trying to add it in a notYetUpgraded element branch.");
-        if (dGrade.has(a.getRootNode({ composed: true })))
-          throw new Error("Downgraded objects cannot be reinjected.");
-      }
-      return res;
-    }
-    const ctx = parent.getRootNode();
-    for (const a of args) {
-      if (a.isConnected) {
-        if (a.getRootNode() !== ctx)
-          throw new Error("Adoption is illegal in DD.");
-
-      } else {
-        if (dGrade.has(a.getRootNode({ composed: true })))
-          throw new Error("Downgraded objects cannot be reinjected.");
-        res.push(a);
-      }
-    }
-    return res;
+    const parentRoot = parent.getRootNode();
+    return args.filter(a => {
+      if (a.isConnected && a.getRootNode() != parentRoot)
+        throw new Error("Adoption is illegal in DD.");
+      // if(a.isConnected) to move nodes around is allowed, but you don't get a onConnect callback
+      return !a.isConnected;
+    });
   }
 
   function insertArgs(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, ...args);
+    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
     const res = og.call(this, ...args);
-    upgradeBranch(...toBeUpgraded);
+    this.isConnected && connectBranch(toBeUpgraded);
     return res;
   }
   function insertArgs0(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, args[0]);
+    const toBeUpgraded = this.isConnected && upgradeables(this, args[0]);
     const res = og.call(this, ...args);
-    upgradeBranch(...toBeUpgraded);
+    this.isConnected && connectBranch(toBeUpgraded);
     return res;
   }
   function insertArgs1(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, args[1]);
+    const toBeUpgraded = this.isConnected && upgradeables(this, args[1]);
     const res = og.call(this, ...args);
-    upgradeBranch(...toBeUpgraded);
-    return res;
-  }
-  function removesArgs0(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    if (!this.isConnected) return og.call(this, ...args);
-    const n = args[0];
-    const res = og.call(this, ...args);
-    n instanceof Element && !n.isConnected && dGrade.add(n);
-    return res;
-  }
-  function removesArgs1(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    if (!this.isConnected) return og.call(this, ...args);
-    const n = args[1];
-    const res = og.call(this, ...args);
-    n instanceof Element && !n.isConnected && dGrade.add(n);
+    this.isConnected && connectBranch(toBeUpgraded);
     return res;
   }
   function range_surroundContent(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, args[0]); //needed to validate the args[0]
+    const toBeUpgraded = this.isConnected && upgradeables(this, args[0]); //needed to validate the args[0]
     if (!this.isConnected)
       return og.call(this, ...args);
-    const removables = args[0].children.length && [...args[0].children];
     const res = og.call(this, ...args);
-    removables && dGrade.add(...removables.filter(n => !n.isConnected));
-    upgradeBranch(...toBeUpgraded);
-    return res;
-  }
-  function removeThis(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    if (!this.isConnected) return og.call(this, ...args);
-    const res = og.call(this, ...args);
-    dGrade.add(this);
-    return res;
-  }
-  function removeChildren() {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    if (!this.isConnected) return og.call(this, ...args);
-    const removables = this.children.length && [...this.children];
-    const res = og.call(this, ...args);
-    removables && dGrade.add(...removables.filter(n => !n.isConnected));
+    this.isConnected && connectBranch(toBeUpgraded);
     return res;
   }
   function element_replaceWith(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, ...args);
+    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
     const wasConnected = this.isConnected;
     const res = og.call(this, ...args);
     if (wasConnected) {
-      dGrade.add(this);
-      upgradeBranch(...toBeUpgraded);
+      this.isConnected && connectBranch(toBeUpgraded);
     }
     return res;
   }
   function parentnode_replaceChildren(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
-    const toBeUpgraded = upgradeables(this, ...args);
-    const removables = this.isConnected && this.children.length && [...this.children];
+    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
     const res = og.call(this, ...args);
-    removables && dGrade.add(...removables.filter(n => !n.isConnected));
-    upgradeBranch(...toBeUpgraded);
+    this.isConnected && connectBranch(toBeUpgraded);
     return res;
   }
   function innerHTMLsetter(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
     if (!this.isConnected) return og.call(this, ...args);
-    const removables = this.children?.length && [...this.children];
     const res = og.call(this, ...args);
-    removables && dGrade.add(...removables);
-    upgradeBranch(...this.children);
+    this.isConnected && connectBranch(this.children);
     return res;
   }
   function outerHTMLsetter(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
     if (!this.isConnected || !this.parentNode) return og.call(this, ...args);
     const sibs = [...this.parentNode.children];
     const res = og.call(this, ...args);
-    dGrade.add(this);
     const sibs2 = [...this.parentNode.children].filter(n => !sibs.includes(n));
-    upgradeBranch(...sibs2);
+    this.isConnected && connectBranch(sibs2);
     return res;
   }
   function innerTextSetter(og, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
     if (!this.isConnected) return og.call(this, ...args);
-    const removables = this.children.length && [...this.children];
     const res = og.call(this, ...args);
-    removables && dGrade.add(...removables.filter(n => !n.isConnected));
+    this.isConnected && connectBranch(this.children);
     return res;
   }
   function textContentSetter(og, ...args) {
     if (this.nodeType !== Node.ELEMENT_NODE && this.nodeType !== Node.DOCUMENT_FRAGMENT_NODE)
       return og.call(this, ...args);
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
     if (!this.isConnected) return og.call(this, ...args);
-    const removables = this.children.length && [...this.children];
     const res = og.call(this, ...args);
-    removables && dGrade.add(...removables);
+    this.isConnected && connectBranch(this.children);
     return res;
   }
   function insertAdjacentHTML_DD(og, position, ...args) {
-    if (dGrade.has(this.getRootNode({ composed: true })))
-      throw new Error("Downgraded objects cannot be changed. Is pointless.");
     let root, index;
     if (position === "afterbegin")
       root = this, index = 0;
@@ -243,7 +160,7 @@ function upgradeBranch(...els) {
     const res = og.call(this, position, ...args);
     const addCount = root.children.length - childCount;
     const newRoots = Array.from(root.children).slice(index, index + addCount);
-    upgradeBranch(...newRoots);
+    this.isConnected && connectBranch(newRoots);
     return res;
   }
 
@@ -265,12 +182,6 @@ function upgradeBranch(...els) {
     [Range.prototype, "insertNode", insertArgs0],
 
     [Element.prototype, "insertAdjacentElement", insertArgs1],
-
-    [Node.prototype, "removeChild", removesArgs0],
-    [Node.prototype, "replaceChild", removesArgs1],
-    [Range.prototype, "deleteContents", removeChildren],
-    [Range.prototype, "extractContents", removeChildren],
-    [Element.prototype, "remove", removeThis],
 
     [Element.prototype, "replaceWith", element_replaceWith],
     [Element.prototype, "replaceChildren", parentnode_replaceChildren],
@@ -301,6 +212,6 @@ function upgradeBranch(...els) {
 
 export function loadDoubleDots(aelOG) {
   if (document.readyState !== "loading")
-    return upgradeBranch(document.htmlElement);
-  aelOG.call(document, "DOMContentLoaded", _ => upgradeBranch(document.documentElement));
+    return connectBranch([document.documentElement]);
+  aelOG.call(document, "DOMContentLoaded", _ => connectBranch([document.documentElement]));
 }

@@ -57,36 +57,7 @@ class AttrCustom extends Attr {
     eventLoop.dispatch(e, this);
   }
 
-  static #ids = 0;
   static errorMap = new Map();
-  static upgrade(at, Def) {
-    //Def is the Portal
-    //the registers getters can never throw.
-    Def ??= at.ownerElement.getRootNode().portals.get(at.name.split(":")[0]);
-    if (!Def) //assumes this is a regular attribute.
-      return;
-    if (Def instanceof Error)
-      throw Def;
-    if (Def.prototype instanceof Attr) {
-      try {
-        Object.setPrototypeOf(at, Def.prototype);
-        Object.defineProperties(at, {
-          "id": { value: this.#ids++, enumerable: true, configurable: false, writable: false },
-          "initDocument": { value: at.getRootNode(), enumerable: true, configurable: false, writable: false }
-        });
-        DoubleDots.cube?.("attr", at);
-        at.upgrade?.();
-        at.value && (at.value = at.value);
-      } catch (err) {
-        AttrCustom.errorMap.set(at, err);
-        throw err;
-      }
-    } else if (Def instanceof Promise) {
-      Object.setPrototypeOf(at, AttrCustom.prototype);
-      Def.then(Def => AttrCustom.upgrade(at, Def))
-        .catch(err => AttrCustom.upgrade(at, err));
-    }
-  }
 }
 class AttrImmutable extends AttrCustom {
   remove() { /* cannot be removed */ }

@@ -13,16 +13,16 @@ const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]
 
 function checkArrowThis(func) {
   if (!(typeof func === "function"))
-    throw new ReferenceError(`.reaction is not a function: '${func}'`);
+    return new ReferenceError(`.reaction is not a function: '${func}'`);
   let txt = func.toString();
   if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))  //alternative a
-    return;
+    return func;
   txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, ''); //remove comments
   //ATT!! `${""}this` only works when "" is removed before ``
   txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '');   //remove "'-strings
   txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, '');   //remove `strings
   if (/\bthis\b/.test(txt))                      //the word this
-    throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
+    return new SyntaxError(`Arrow function reaction contains "this": ${func}`);
   return func;
 }
 
@@ -42,29 +42,52 @@ export class DefinitionsMap {
   #definePortal(name, Portal) {
     this.#portals[name] = Portal;
     if (Portal instanceof Promise)
-      return Portal.then(Def => this.#definePortal(name, Def));
+      return Portal.catch(err => err).then(Def => this.#definePortal(name, Def));
 
     if (!(Portal instanceof Object))
       throw new TypeError(`Portal '${name}' must be an object.`);
-    let { onConnect, onDisconnect, reaction, parseArguments, properties } = Portal;
+
+    const { onConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
+    Portal = { onConnect, onDisconnect, reaction, parseArguments, properties, value };
     if (!onConnect && !reaction)
       throw new TypeError(`Portal '${name}' must have either a .onConnect or .reaction property.`);
-    if (reaction instanceof Promise)
-      reaction.then(checkArrowThis).catch(e => e).then(res => Portal.reaction = res);
-    if (onConnect instanceof Promise)
-      onConnect.then(checkArrowThis).catch(e => e).then(res => Portal.onConnect = res);
-    if (onDisconnect instanceof Promise)
-      onDisconnect.then(checkArrowThis).catch(e => e).then(res => Portal.onDisconnect = res);
-    if (parseArguments instanceof Promise)
-      parseArguments.then(checkArrowThis).catch(e => e).then(res => Portal.parseArguments = res);
-    this.#portals[name] = { onConnect, onDisconnect, reaction, parseArguments, properties };
+    if (!onConnect && (properties || value))
+      throw new TypeError(`Portal '${name}' must have .onConnect if it defines .properties or .value.`);
+
+    const promises = [onConnect, onDisconnect, reaction, parseArguments, properties, value].filter(o => o instanceof Promise);
+    if (promises.length)
+      return Promise.all(promises).catch(err => err).then(_ => this.#definePortal(name, Portal));
+
+    onConnect = checkArrowThis(onConnect);
+    onDisconnect = checkArrowThis(onDisconnect);
+    parseArguments = checkArrowThis(parseArguments);
+    value = checkArrowThis(value);
+    for (let prop in Portal)
+      if (Portal[prop] instanceof Error)
+        this.#portals[name] = new ReferenceError(`Portal ${name} .${prop} failed to produce`, Portal[prop]);
+
+    if (value) {
+      properties ??= {};
+      const OG = Object.getOwnPropertyDescriptor(Attr.prototype, "value");
+      const OGset = OG.set;
+      const set = function (str) {
+        const oldValue = this.value;
+        OGset.call(this, str);
+        value.call(this, str, oldValue);
+      };
+      properties.value = { ...OG, set };
+    }
+
+    this.#portals[name] = { name, onConnect, onDisconnect, reaction, parseArguments, properties };
     if (name in this.#requested) {
       this.#requested[name][Resolver](this.#portals[name]);
       delete this.#requested[name];
     }
   }
 
-  get(name) {
+  portalNameCache = {};
+  get(fullName) {
+    const name = this.portalNameCache[fullName] ??= fullName.split(/[._:]/)[0];
     return this.#portals[name] ?? (this.#requested[name] ??= PromiseResolver());
   }
 }
