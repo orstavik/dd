@@ -3,5 +3,10 @@
   import * as dd from "../src/dd.js";
 
   debugger;
+  document.portals.define("hello", {
+    reaction: function () { console.log("hello", this); },
+  });
 
 </script>
+
+<div i:hello="sunshine"></div>

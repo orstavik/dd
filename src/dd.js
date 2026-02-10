@@ -1,20 +1,19 @@
 // import { } from "./1_DoubleDots.js";
-import { Attr, Intersection, Resize } from "./2_AttrCustom_v26.js";
+// import { Attr, Intersection, Resize } from "./2_AttrCustom_v26.js";
 import { DefinitionsMap } from "./3_definition_registers_v26.js";
-import { EventLoopCube } from "./4_eventLoopCube_v26.js";
-import { connectBranch, monkeyPatch, GC_doubleDots, shimRequestIdleCallback } from "./5_load_DoubleDots_v26.js";
+import { EventLoopCube, GC_doubleDots } from "./4_eventLoopCube_v26.js";
+import { connectBranch, monkeyPatch } from "./5_load_DoubleDots_v26.js";
 
 const PORTALS = new DefinitionsMap();
 Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
 
 document.portals.define("i", {
-  onConnect: _ => window.eventLoopCube.dispatch("i", this),
+  onConnect: function () { window.eventLoopCube.dispatch("i", this); },
 });
 
 window.eventLoopCube = new EventLoopCube();
 
-shimRequestIdleCallback(window.setTimeout);
 setInterval(GC_doubleDots, 1000);
 monkeyPatch();
 

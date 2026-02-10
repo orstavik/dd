@@ -56,12 +56,13 @@ class DefinitionsMap {
 
     const promises = [onConnect, onDisconnect, reaction, parseArguments, properties, value].filter(o => o instanceof Promise);
     if (promises.length)
-      return Promise.all(promises).catch(err => err).then(_ => this.#definePortal(name, Portal));
+      return this.#portals[name] = Promise.all(promises).catch(err => err).then(_ => this.#definePortal(name, Portal));
 
-    onConnect = checkArrowThis(onConnect);
-    onDisconnect = checkArrowThis(onDisconnect);
-    parseArguments = checkArrowThis(parseArguments);
-    value = checkArrowThis(value);
+    reaction = reaction && checkArrowThis(reaction);
+    onConnect = onConnect && checkArrowThis(onConnect);
+    onDisconnect = onDisconnect && checkArrowThis(onDisconnect);
+    parseArguments = parseArguments && checkArrowThis(parseArguments);
+    value = value && checkArrowThis(value);
     for (let prop in Portal)
       if (Portal[prop] instanceof Error)
         this.#portals[name] = new ReferenceError(`Portal ${name} .${prop} failed to produce`, Portal[prop]);

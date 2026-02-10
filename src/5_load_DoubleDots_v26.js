@@ -1,31 +1,3 @@
-function shimRequestIdleCallback(setTimeoutOG = window.setTimeout) {
-  window.requestIdleCallback ??= function requestIdleCallback(cb, { timeout = Infinity } = {}) {
-    const callTime = performance.now();
-    return setTimeoutOG(_ => {
-      const start = performance.now();
-      cb({
-        didTimeout: (performance.now() - callTime) >= timeout,
-        timeRemaining: () => Math.max(0, 50 - (performance.now() - start))
-      });
-    }, 16);
-  };
-  window.cancelIdleCallback ??= clearTimeout;
-}
-
-const downGrades = new Map();
-function GC_doubleDots() {
-  for (const [portal, set] of downGrades.entries()) {
-    for (const at of set) {
-      if (!at.isConnected) {
-        set.delete(at);
-        window.eventLoopCube.disconnect(at, portal);
-      }
-    }
-    if (!set.size)
-      downGrades.delete(portal);
-  }
-};
-
 function* walkAttributes(root) {
   if (root.attributes)
     yield* Array.from(root.attributes);
@@ -200,8 +172,6 @@ function monkeyPatch() {
 }
 
 export {
-  shimRequestIdleCallback,
   connectBranch,
   monkeyPatch,
-  GC_doubleDots,
 }

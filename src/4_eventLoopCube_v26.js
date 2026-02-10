@@ -2,7 +2,8 @@ class MicroFrame {
   #i = 1;
   #inputs;
 
-  constructor(event, at) {
+  constructor(__eventLoop, event, at) {
+    this.__eventLoop = __eventLoop;
     this.at = at;
     this.event = event;
     this.names = at.name.split(":");
@@ -52,6 +53,10 @@ class MicroFrame {
         this.#runError(portal);
         continue;
       }
+      if (portal instanceof Promise) {
+        portal.finally(_ => this.__eventLoop.asyncContinue(this));
+        return;
+      }
       const reaction = portal.reactions.get(re);
       if (reaction === null) {
         this.#runError(new Error("reaction is null: " + re));
@@ -61,10 +66,10 @@ class MicroFrame {
         const func = reaction;
         if (func instanceof Promise) {
           if (threadMode) {
-            func.finally(_ => __eventLoop.asyncContinue(this));
+            func.finally(_ => this.__eventLoop.asyncContinue(this));
             return;
           } else {
-            func.finally(_ => __eventLoop.syncContinue());
+            func.finally(_ => this.__eventLoop.syncContinue());
             return this;
           }
         }
@@ -75,12 +80,12 @@ class MicroFrame {
           if (threadMode) {
             res.then(oi => this.#runSuccess(oi))
               .catch(error => this.#runError(error))
-              .finally(_ => __eventLoop.asyncContinue(this));
+              .finally(_ => this.__eventLoop.asyncContinue(this));
             return; //continue outside loop
           } else {
             res.then(oi => this.#runSuccess(oi))
               .catch(error => this.#runError(error))
-              .finally(_ => __eventLoop.syncContinue());
+              .finally(_ => this.__eventLoop.syncContinue());
             //todo these sync delays needs to have a max timeout.
             //todo thus, we need to have some max timers
             return this; //halt outside loop
@@ -136,7 +141,7 @@ class __EventLoop {
     while (!this.#syncTask && this.#stack[0]) {
       const { event, iterator } = this.#stack[0];
       for (let attr of iterator) {
-        this.task = new MicroFrame(event, attr);
+        this.task = new MicroFrame(this, event, attr);
         //if task.run() not emptied, abort to halt eventloop
         if (this.#syncTask = this.task.run())
           return;//DoubleDots.cube?.("task-sync-break", this.#syncTask);
@@ -155,6 +160,35 @@ class __EventLoop {
       ;//DoubleDots.cube?.("task-queued", {});
   }
 }
+
+function shimRequestIdleCallback(setTimeoutOG = window.setTimeout) {
+  window.requestIdleCallback ??= function requestIdleCallback(cb, { timeout = Infinity } = {}) {
+    const callTime = performance.now();
+    return setTimeoutOG(_ => {
+      const start = performance.now();
+      cb({
+        didTimeout: (performance.now() - callTime) >= timeout,
+        timeRemaining: () => Math.max(0, 50 - (performance.now() - start))
+      });
+    }, 16);
+  };
+  window.cancelIdleCallback ??= clearTimeout;
+}
+shimRequestIdleCallback(setTimeout);
+
+const downGrades = new Map();
+function GC_doubleDots() {
+  for (const [portal, set] of downGrades.entries()) {
+    for (const at of set) {
+      if (!at.isConnected) {
+        set.delete(at);
+        window.eventLoopCube.disconnect(at, portal);
+      }
+    }
+    if (!set.size)
+      downGrades.delete(portal);
+  }
+};
 
 class EventLoopCube {
 
@@ -198,4 +232,4 @@ class EventLoopCube {
   }
 };
 
-export { EventLoopCube };
+export { EventLoopCube, GC_doubleDots };
