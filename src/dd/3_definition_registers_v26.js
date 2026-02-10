@@ -1,123 +1,74 @@
-function ddToJs(n) {
-  return n.replace(/-[a-z]/g, m => m[1].toUpperCase()).replace(".", "$$").replace("-", "$_");
+//this is the attribute itself for all functions.
+// const PortalDefinition = {
+//   value: function(newValue,oldValue){ ... },
+//   onConnect: function(){...}, //always returns undefined
+//   onDisconnect: function(){...}, //always returns undefined
+//   reaction: function(...args){...}, //can return a special thing to end the chain. otherwise whatever.
+//   parseArguments: function(fullName){...}, //returns an array of something or undefined
+//   properties: {dict}, // these properties will be Object.assign() on the node.
+// }
+
+const Resolver = Symbol("Resolver");
+const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
+
+function checkArrowThis(func) {
+  if (!(typeof func === "function"))
+    throw new ReferenceError(`.reaction is not a function: '${func}'`);
+  let txt = func.toString();
+  if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))  //alternative a
+    return;
+  txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, ''); //remove comments
+  //ATT!! `${""}this` only works when "" is removed before ``
+  txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '');   //remove "'-strings
+  txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, '');   //remove `strings
+  if (/\bthis\b/.test(txt))                      //the word this
+    throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
+  return func;
 }
 
-class DefinitionsMap {
-
-  static checkName(name) {
-    const portal = name.match(/^([a-z][a-z0-9]*)([a-z0-9_.-]*[^_.-])?$/);
-    if (!portal)
-      throw new SyntaxError(`Illegal reaction/trigger name: '${name}'.`);
-    return portal[1];
-  }
+export class DefinitionsMap {
 
   #portals = {};
-  #define(name, Def) {
-    this.#portals[name] = Def;
-    DoubleDots.cube?.("define", { name, Def });
-    if (Def instanceof Promise)
-      return Def.then(Def => this.#define(name, Def))
-        .catch(err => this.#define(name, err));
-  }
+  #requested = {};
 
   define(name, Portal) {
+    if (!name.match(/^[a-z][a-z0-9]*$/))
+      throw new SyntaxError(`Illegal portal name: '${name}'.`);
     if (name in this.#portals)
-      throw new ReferenceError(`Trying to redefine portal: ${name}.`);
-    this.#define(name, Portal);
+      throw new ReferenceError(`Trying to define portal twice: ${name}.`);
+    this.#definePortal(name, Portal);
   }
 
-  #cache = {};
-  #tryPortal(fullname, portalName) {
-    const Portal = this.#portals[portalName];
-    if (!Portal) {
-      let r;
-      const p = new Promise(f => r = f);
-      p.resolve = r;
-      return this.#cache[fullname] = this.#portals[portalName] = p;
-    }
-    if (Portal instanceof Error)
-      return this.#cache[fullname] = Portal;
+  #definePortal(name, Portal) {
+    this.#portals[name] = Portal;
     if (Portal instanceof Promise)
-      return this.#cache[fullname] = (async _ => (await Portal, this.#tryPortal(fullname, portalName)))();
+      return Portal.then(Def => this.#definePortal(name, Def));
 
-    //at this point we should have a working portal.
-    //First, direct definition
-    const jsName = ddToJs(fullname);
-    let Def = Portal[jsName];
-    if (Def instanceof Promise)
-      return this.#cache[fullname] = (async _ => (await Portal, this.#tryPortal(fullname, portalName)))();
-    if (Def)
-      return this.#cache[fullname] = Def;
-
-    //Second, try rule
-    let ruleName = jsName.match(/^[a-z0-9]+(_|$$|$_)/);
-    if (!ruleName)
-      throw new ReferenceError(`Reaction/trigger '${fullname}' has no matching definition.`);
-    ruleName = ruleName[0];
-    const Rule = Portal[ruleName];
-    if (!Rule)
-      throw new ReferenceError(`Reaction/trigger '${fullname}' has no matching definition.`);
-    if (Rule instanceof Error)
-      return this.#cache[fullname] = Rule;
-    if (Rule instanceof Promise)
-      return this.#cache[fullname] = (async _ => (await Rule, this.#tryPortal(fullname, portalName)))();
-    if (typeof Rule != "function")
-      return this.#cache[fullname] = new TypeError(`Rule '${ruleName}' did not produce a function/Attr. typeof Rule: ${typeof Rule}. Portal: ${portalName}.`);
-    try {
-      Def = Rule(fullname);
-      if (Def instanceof Promise)
-        return this.#cache[fullname] =
-          Def.then(Def => this.#cache[fullname] = Def)
-            .catch(err => this.#cache[fullname] = err);
-      return this.#cache[fullname] = Def;
-    } catch (err) {
-      return this.#cache[fullname] = err;
+    if (!(Portal instanceof Object))
+      throw new TypeError(`Portal '${name}' must be an object.`);
+    let { onConnect, onDisconnect, reaction, parseArguments, properties } = Portal;
+    if (!onConnect && !reaction)
+      throw new TypeError(`Portal '${name}' must have either a .onConnect or .reaction property.`);
+    if (reaction instanceof Promise)
+      reaction.then(checkArrowThis).catch(e => e).then(res => Portal.reaction = res);
+    if (onConnect instanceof Promise)
+      onConnect.then(checkArrowThis).catch(e => e).then(res => Portal.onConnect = res);
+    if (onDisconnect instanceof Promise)
+      onDisconnect.then(checkArrowThis).catch(e => e).then(res => Portal.onDisconnect = res);
+    if (parseArguments instanceof Promise)
+      parseArguments.then(checkArrowThis).catch(e => e).then(res => Portal.parseArguments = res);
+    this.#portals[name] = { onConnect, onDisconnect, reaction, parseArguments, properties };
+    if (name in this.#requested) {
+      this.#requested[name][Resolver](this.#portals[name]);
+      delete this.#requested[name];
     }
   }
 
-  getReaction(name) {
-    if (name in this.#cache) return this.#cache[name];
-    const portalName = DefinitionsMap.checkName(name);
-    return this.#tryPortal(name, portalName);
-  }
-
-  getTrigger(name) {
-    const trigger = "-" + name;
-    if (trigger in this.#cache) return this.#cache[trigger];
-    const portalName = DefinitionsMap.checkName(name);
-    return this.#tryPortal(trigger, portalName);
+  get(name) {
+    return this.#portals[name] ?? (this.#requested[name] ??= PromiseResolver());
   }
 }
 
-function ReactionThisInArrowCheck(DefMap) { //todo add this to Reaction maps?
-  return class ReactionMapNoThisInArrow extends DefMap {
-    define(fullname, Def) {
-      DoubleDots.ThisArrowFunctionError.check(Def);
-      super.define(fullname, Def);
-    }
-  };
-}
-
-const definitionsMap = new DefinitionsMap();
-const dp = definitionsMap.define.bind(definitionsMap);
-const gr = definitionsMap.getReaction.bind(definitionsMap);
-const gt = definitionsMap.getTrigger.bind(definitionsMap);
-
-Object.defineProperty(Document.prototype, "definePortal", { value: dp });
-Object.defineProperty(Document.prototype, "getReaction", { value: gr });
-Object.defineProperty(Document.prototype, "getTrigger", { value: gt });
-Object.defineProperty(ShadowRoot.prototype, "definePortal", { value: dp });
-Object.defineProperty(ShadowRoot.prototype, "getReaction", { value: gr });
-Object.defineProperty(ShadowRoot.prototype, "getTrigger", { value: gt });
-
-DoubleDots.DefinitionsMap = DefinitionsMap;
-
-//Best practice: define before use. The limitation is that the call to define them *must* come before the first call to use them.
-//1. For static defintions and use, just define all functions on top of the document, before use.
-//   This can be checked by tooling up front.
-//2. You can also dynamically define and use defintions and rules.
-//   You only need to define the dynamically created methods before you add them as triggers in the document, 
-//   or access them as reactions.
-//
-//* Note! Definitions can be loaded async! So you only need to specify from where you are going to get the definition,
-//   you don't need the ready definition for it to work.
+const PORTALS = new DefinitionsMap();
+Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
+Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
