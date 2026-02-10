@@ -49,19 +49,6 @@ class MicroFrame {
 
         const func = this.at.initDocument.getReaction(re, this.at);
         if (func instanceof Promise) {
-          // if (threadMode) {
-          //   func.then(_ => __eventLoop.asyncContinue(this))
-          //     .catch(error => this.#runError(error));
-          //   return; //continue outside loop
-          // } else if (func instanceof DoubleDots.UnknownDefinition) {
-          //   return this.#runError(new EventLoopError("Reaction not defined: " + re));
-          //   //RulePromise, DefinitionPromise
-          // } else {
-          //   func.then(_ => __eventLoop.syncContinue());
-          //   //todo these sync delays needs to have a max timeout.
-          //   //todo thus, we need to have some max timers
-          //   return this; //halt outside loop
-          // }
           if (threadMode) {
             func.finally(_ => __eventLoop.asyncContinue(this));
             return;
@@ -130,14 +117,14 @@ class __EventLoop {
   //todo clean the continue process. but do so after testing framework is up and running
   syncContinue() {
     this.task = this.#syncTask;
-    DoubleDots.cube?.("task-sync", this.task);
+    // DoubleDots.cube?.("task-sync", this.task);
     this.#syncTask = this.task.run();
     this.#loop();
   }
 
   //asyncContinue is allowed while we are waiting for the sync task
   asyncContinue(task) {
-    DoubleDots.cube?.("task-async", task);
+    // DoubleDots.cube?.("task-async", task);
     (this.task = task).run(true);
     this.#loop();
   }
@@ -149,12 +136,12 @@ class __EventLoop {
         this.task = new MicroFrame(event, attr);
         //if task.run() not emptied, abort to halt eventloop
         if (this.#syncTask = this.task.run())
-          return DoubleDots.cube?.("task-sync-break", this.#syncTask);
-        DoubleDots.cube?.("task", this.task);
+          return ;//DoubleDots.cube?.("task-sync-break", this.#syncTask);
+        // DoubleDots.cube?.("task", this.task);
       }
       this.#stack.shift();
     }
-    return DoubleDots.cube?.("task-empty", {});
+    return ;//DoubleDots.cube?.("task-empty", {});
   }
 
   batch(event, iterable) {
@@ -162,43 +149,49 @@ class __EventLoop {
     if (this.#stack.push({ event, iterator }) === 1)
       this.#loop();
     else
-      DoubleDots.cube?.("task-queued", {});
+      ;//DoubleDots.cube?.("task-queued", {});
   }
 }
 
 globalThis.__eventLoop = new __EventLoop();
 
-//external interface
-class EventLoop {
+class EventLoopCube {
 
-  static Break = {};
+  static Break = Symbol("Break");
 
-  static SpreadReaction = function (fun) {
-    return function SpreadReaction(oi) {
-      return oi instanceof Iterable ?
-        fun.call(this, ...oi) :
-        fun.call(this, oi);
-      // if (oi instanceof Iterable)
-      //   return fun.call(this, ...oi);
-      // throw new DoubleDotsSpreadReactionError("SpreadReactions must be passed a spreadable oi argument");
-    };
-  };
-
-  //todo freeze the SpreadReaction, Break.
   get event() { return __eventLoop.task?.event; }
   get attribute() { return __eventLoop.task?.at; }
+  // get portal() { return __eventLoop.task?.portal; } //todo we should be able to get something like this.
   get reaction() { return __eventLoop.task?.getReaction(); }
   get reactionIndex() { return __eventLoop.task?.getReactionIndex() ?? -1; }
 
-  dispatch(event, attr) {
-    __eventLoop.batch(event, [attr]);
-  }
-
-  //todo rename to propagate
   dispatchBatch(event, iterable) {
     __eventLoop.batch(event, iterable);
   }
+  dispatch(event, attr) {
+    __eventLoop.batch(event, [attr]);
+  }
+  connect(at) {
+    //todo register this in the event loop cube stack as a task.
+    const portal = at.ownerElement.getRootNode().portals.get(at.name);
+    if (portal === null || portal.onConnect == null)
+      return;                             //if portal === null, then trigger inactive, we simply abort onConnect
+    if (portal instanceof Promise)        //just try again when the portal has resolved.
+      return portal.then(p => at.ownerElement.isConnected && doOnConnect(at, p));
+
+    if (portal instanceof Error)
+      return console.error("Error connecting trigger: " + at + " portal definition error: " + portal.message);
+    if (portal.properties)
+      Object.defineProperties(at, portal.properties);
+    portal.onConnect.call(at);
+    if ("onDisconnect" in portal) {
+      const set = downGrades.get(portal) ?? new Set();
+      set.add(at);
+      downGrades.set(portal, set);
+    }
+  }
+  disconnect(at, portal) {
+    //todo register this in the event loop cube stack as a task.
+    portal.onDisconnect.call(at);
+  }
 };
-Object.defineProperty(window, "eventLoop", { value: new EventLoop() });
-DoubleDots.EventLoopError = EventLoopError;
-window.EventLoop = EventLoop;

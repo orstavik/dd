@@ -20,7 +20,7 @@ setInterval(function gc() {
     for (const at of set) {
       if (!at.isConnected) {
         set.delete(at);
-        portal.onDisconnect.call(at);
+        window.eventLoopCube.disconnect(at, portal);
       }
     }
     if (!set.size)
@@ -28,30 +28,10 @@ setInterval(function gc() {
   }
 }, 1000);
 
-function doOnConnect(at, portal) {
-  if (portal === null || portal.onConnect == null)
-    return;                             //if portal === null, then trigger inactive, we simply abort onConnect
-  if (portal instanceof Promise)        //just try again when the portal has resolved.
-    return portal.then(p => at.ownerElement.isConnected && doOnConnect(at, p));
-
-  //todo this should trigger a eventLoopCube event.
-  if (portal instanceof Error)
-    return console.error("Error connecting trigger: " + at + " portal definition error: " + portal.message);
-  if (portal.properties)
-    Object.defineProperties(at, portal.properties);
-  portal.onConnect.call(at);
-  if ("onDisconnect" in portal) {
-    const set = downGrades.get(portal) ?? new Set();
-    set.add(at);
-    downGrades.set(portal, set);
-  }
-  //todo this should be registered in the event loop cube
-}
-
 function connectBranch(els) {
   for (let el of els)
     for (const at of DoubleDots.walkAttributes(el))
-      doOnConnect(at, at.ownerElement.getRootNode().portals.get(at.name));
+      window.eventLoopCube.connect(at);
 }
 
 (function () {
