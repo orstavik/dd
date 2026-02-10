@@ -1,7 +1,7 @@
 import { } from "./1_DoubleDots.js";
-import { } from "./2_AttrCustom_v25x.js";
+import { } from "./2_AttrCustom_v26.js";
 import { } from "./3_definition_registers_v26.js";
-import { } from "./4_eventLoop_v25x.js";
+import { } from "./4_eventLoop_v26.js";
 import { loadDoubleDots } from "./5_load_DoubleDots_v25.js";
 // import * as define from "../../x/define/v25x.js";
 // import * as template from "../../x/template/v25.js";
