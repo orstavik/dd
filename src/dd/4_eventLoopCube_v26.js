@@ -1,13 +1,14 @@
 Event.data = Symbol("Event data");
-class EventLoopError extends DoubleDots.DoubleDotsError { }
 
 class MicroFrame {
-  #i = 0;
+  #i = 1;
   #inputs;
 
   constructor(event, at) {
     this.at = at;
     this.event = event;
+    this.names = at.name.split(":");
+    this.portals = this.names.map(name => at.ownerElement.getRootNode().portals.get(name));
     this.#inputs = [event[Event.data] ?? event];
   }
 
@@ -16,7 +17,11 @@ class MicroFrame {
   }
 
   getReaction() {
-    return this.at.reactions[this.#i];
+    return this.names[this.#i];
+  }
+
+  getPortal() {
+    return this.portals[this.#i];
   }
 
   getReactionIndex() {
@@ -37,17 +42,25 @@ class MicroFrame {
         this.#runSuccess(this.#inputs[0]);
         continue;
       }
-      //todo this one
-      if (re.startsWith("catch"))
+      if (re.startsWith("catch"))   //catch is a little bit iffy..
         continue;
 
-      //2. check isConnected
+      const portal = this.getPortal();
+      if (portal === null) {
+        this.#runError(new Error("portal is null: " + re));
+        continue;
+      }
+      if (portal instanceof Error) {
+        this.#runError(portal);
+        continue;
+      }
+      const reaction = portal.reactions.get(re);
+      if (reaction === null) {
+        this.#runError(new Error("reaction is null: " + re));
+        continue;
+      }
       try {
-        if (!this.at.isConnected)
-          throw new EventLoopError("Disconnected: " + this.at);
-        //todo should this be an error??
-
-        const func = this.at.initDocument.getReaction(re, this.at);
+        const func = reaction;
         if (func instanceof Promise) {
           if (threadMode) {
             func.finally(_ => __eventLoop.asyncContinue(this));
@@ -57,9 +70,6 @@ class MicroFrame {
             return this;
           }
         }
-
-        if (func instanceof Error)
-          throw func;
 
         const res = func.apply(this.at, this.#inputs);
         this.#inputs.unshift(res);
@@ -92,20 +102,15 @@ class MicroFrame {
     console.error(error);
     this.#inputs[0] = error;
     const catchKebab = "catch_" + error.constructor.name.replace(/[A-Z]/g, '-$&').toLowerCase();
-    for (this.#i++; this.#i < this.at.reactions.length; this.#i++)
-      if (this.at.reactions[this.#i] === "catch" || this.at.reactions[this.#i] === catchKebab)
+    for (this.#i++; this.#i < this.portals.length; this.#i++)
+      if (this.portals[this.#i] === "catch" || this.portals[this.#i] === catchKebab)
         return;
-
-    // this.#i = this.at.reactions.length;
-    const target = this.at.isConnected ? this.at.ownerElement : document.documentElement;
-    //todo add the at + reactionIndex + self + input to the ErrorEvent, so that we know which attribute caused the error
-    //todo or just the at, and then just read the data from the _eventLoop?
-    target.dispatchEvent(new ErrorEvent("error", { error }));
+    //the error has been caught in the eventLoopCube. We need to inspect this one to see the error.
   }
 
   #runSuccess(res) {
     this.#inputs[0] = res;
-    this.#i = res === EventLoop.Break ? this.at.reactions.length : this.#i + 1;
+    this.#i = res === EventLoopCube.Break ? this.portals.length : this.#i + 1;
   }
 }
 
@@ -136,12 +141,12 @@ class __EventLoop {
         this.task = new MicroFrame(event, attr);
         //if task.run() not emptied, abort to halt eventloop
         if (this.#syncTask = this.task.run())
-          return ;//DoubleDots.cube?.("task-sync-break", this.#syncTask);
+          return;//DoubleDots.cube?.("task-sync-break", this.#syncTask);
         // DoubleDots.cube?.("task", this.task);
       }
       this.#stack.shift();
     }
-    return ;//DoubleDots.cube?.("task-empty", {});
+    return;//DoubleDots.cube?.("task-empty", {});
   }
 
   batch(event, iterable) {
@@ -172,7 +177,7 @@ class EventLoopCube {
     __eventLoop.batch(event, [attr]);
   }
   connect(at) {
-    //todo register this in the event loop cube stack as a task.
+    //todo register this in the event loop cube stack as a task.  __eventLoop.batch(Symbol("connect"), [at]);
     const portal = at.ownerElement.getRootNode().portals.get(at.name);
     if (portal === null || portal.onConnect == null)
       return;                             //if portal === null, then trigger inactive, we simply abort onConnect
@@ -191,7 +196,7 @@ class EventLoopCube {
     }
   }
   disconnect(at, portal) {
-    //todo register this in the event loop cube stack as a task.
+    //todo register this in the event loop cube stack as a task.  __eventLoop.batch(Symbol("disconnect"), [at], portal);
     portal.onDisconnect.call(at);
   }
 };
