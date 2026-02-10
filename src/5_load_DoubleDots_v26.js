@@ -1,7 +1,5 @@
-const setTimeoutOG = window.setTimeout;
-//shim requestIdleCallback
-(function () {
-  window.requestIdleCallback ??= function (cb, { timeout = Infinity } = {}) {
+function shimRequestIdleCallback(setTimeoutOG = window.setTimeout) {
+  window.requestIdleCallback ??= function requestIdleCallback(cb, { timeout = Infinity } = {}) {
     const callTime = performance.now();
     return setTimeoutOG(_ => {
       const start = performance.now();
@@ -12,10 +10,10 @@ const setTimeoutOG = window.setTimeout;
     }, 16);
   };
   window.cancelIdleCallback ??= clearTimeout;
-})();
+}
 
 const downGrades = new Map();
-setInterval(function gc() {
+function GC_doubleDots() {
   for (const [portal, set] of downGrades.entries()) {
     for (const at of set) {
       if (!at.isConnected) {
@@ -26,15 +24,26 @@ setInterval(function gc() {
     if (!set.size)
       downGrades.delete(portal);
   }
-}, 1000);
+};
+
+function* walkAttributes(root) {
+  if (root.attributes)
+    yield* Array.from(root.attributes);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  for (let n; n = walker.nextNode();) {
+    yield* Array.from(n.attributes);
+    if (n.shadowRoot)
+      yield* walkAttributes(n.shadowRoot);
+  }
+}
 
 function connectBranch(els) {
   for (let el of els)
-    for (const at of DoubleDots.walkAttributes(el))
+    for (const at of walkAttributes(el))
       window.eventLoopCube.connect(at);
 }
 
-(function () {
+function monkeyPatch() {
 
   function setAttribute_DD(og, name, value) {
     const at = this.getAttributeNode(name);
@@ -188,10 +197,11 @@ function connectBranch(els) {
     Object.defineProperty(obj, prop,
       Object.assign({}, d, { [d.set ? "set" : "value"]: monkey2 }));
   }
-})();
+}
 
-export function loadDoubleDots(aelOG) {
-  if (document.readyState !== "loading")
-    return connectBranch([document.documentElement]);
-  aelOG.call(document, "DOMContentLoaded", _ => connectBranch([document.documentElement]));
+export {
+  shimRequestIdleCallback,
+  connectBranch,
+  monkeyPatch,
+  GC_doubleDots,
 }

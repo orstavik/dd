@@ -26,7 +26,7 @@ function checkArrowThis(func) {
   return func;
 }
 
-export class DefinitionsMap {
+class DefinitionsMap {
 
   #portals = {};
   #requested = {};
@@ -47,7 +47,7 @@ export class DefinitionsMap {
     if (!(Portal instanceof Object))
       throw new TypeError(`Portal '${name}' must be an object.`);
 
-    const { onConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
+    let { onConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
     Portal = { onConnect, onDisconnect, reaction, parseArguments, properties, value };
     if (!onConnect && !reaction)
       throw new TypeError(`Portal '${name}' must have either a .onConnect or .reaction property.`);
@@ -91,7 +91,6 @@ export class DefinitionsMap {
     return this.#portals[name] ?? (this.#requested[name] ??= PromiseResolver());
   }
 }
-
-const PORTALS = new DefinitionsMap();
-Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
-Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
+export {
+  DefinitionsMap,
+}

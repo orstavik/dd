@@ -190,7 +190,6 @@ window.DoubleDots = {
   monkeyPatch,
 
   DoubleDotsError,
-  ThisArrowFunctionError,
   DeprecationError: class DeprecationError extends DoubleDotsError { },
   MissingReaction: class MissingReaction extends DoubleDotsError { },
   DisconnectedError: class DisconnectedError extends DoubleDotsError { },

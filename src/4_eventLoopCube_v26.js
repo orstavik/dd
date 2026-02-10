@@ -1,5 +1,3 @@
-Event.data = Symbol("Event data");
-
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -9,7 +7,7 @@ class MicroFrame {
     this.event = event;
     this.names = at.name.split(":");
     this.portals = this.names.map(name => at.ownerElement.getRootNode().portals.get(name));
-    this.#inputs = [event[Event.data] ?? event];
+    this.#inputs = [event];
   }
 
   toJSON() {
@@ -158,26 +156,25 @@ class __EventLoop {
   }
 }
 
-globalThis.__eventLoop = new __EventLoop();
-
 class EventLoopCube {
 
+  #eventLoop = new __EventLoop();
   static Break = Symbol("Break");
 
-  get event() { return __eventLoop.task?.event; }
-  get attribute() { return __eventLoop.task?.at; }
+  get event() { return this.#eventLoop.task?.event; }
+  get attribute() { return this.#eventLoop.task?.at; }
   // get portal() { return __eventLoop.task?.portal; } //todo we should be able to get something like this.
-  get reaction() { return __eventLoop.task?.getReaction(); }
-  get reactionIndex() { return __eventLoop.task?.getReactionIndex() ?? -1; }
+  get reaction() { return this.#eventLoop.task?.getReaction(); }
+  get reactionIndex() { return this.#eventLoop.task?.getReactionIndex() ?? -1; }
 
   dispatchBatch(event, iterable) {
-    __eventLoop.batch(event, iterable);
+    this.#eventLoop.batch(event, iterable);
   }
   dispatch(event, attr) {
-    __eventLoop.batch(event, [attr]);
+    this.dispatchBatch(event, [attr]);
   }
   connect(at) {
-    //todo register this in the event loop cube stack as a task.  __eventLoop.batch(Symbol("connect"), [at]);
+    //todo register this in the event loop cube stack as a task.  this.#eventLoop.batch(Symbol("connect"), [at]);
     const portal = at.ownerElement.getRootNode().portals.get(at.name);
     if (portal === null || portal.onConnect == null)
       return;                             //if portal === null, then trigger inactive, we simply abort onConnect
@@ -196,7 +193,9 @@ class EventLoopCube {
     }
   }
   disconnect(at, portal) {
-    //todo register this in the event loop cube stack as a task.  __eventLoop.batch(Symbol("disconnect"), [at], portal);
+    //todo register this in the event loop cube stack as a task.  this.#eventLoop.batch(Symbol("disconnect"), [at], portal);
     portal.onDisconnect.call(at);
   }
 };
+
+export { EventLoopCube };
