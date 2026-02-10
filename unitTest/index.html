@@ -1,0 +1,96 @@
+<script type="module">
+
+  import { DefinitionsMap } from "../src/dd/3_definition_registers_v26.js";
+
+  function runTest(cb) {
+    try {
+      cb();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function waitForIt(dur, cb) {
+    await new Promise(r => setTimeout(r, dur));
+    cb();
+  }
+
+  runTest(_ => {
+    const PORTALS = new DefinitionsMap();
+    //1. test sync portal definition
+    PORTALS.define("one", {
+      reaction: _ => "a reaction",
+      onConnect: function () { return "onConnect " + JSON.stringify(this); },
+      onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
+      value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
+      parseArguments: fullName => fullName.split(/[_.]/).slice(1),
+    });
+    //2. one reaction
+    const one = PORTALS.get("one");
+    const { reaction, onConnect } = one;
+
+    console.log("one reaction", "a reaction" === reaction());
+    console.log('onConnect {"a":1}', 'onConnect {"a":1}' === onConnect.call({ a: 1 }));
+  });
+
+  runTest(async _ => {
+    const PORTALS = new DefinitionsMap();
+
+    const one = PORTALS.get("one");
+
+    PORTALS.define("one", {
+      reaction: _ => "a reaction",
+      onConnect: function () { return "onConnect " + JSON.stringify(this); },
+      onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
+      value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
+      parseArguments: fullName => fullName.split(/[_.]/).slice(1),
+    });
+
+    const { reaction, onConnect } = await one;
+
+    console.log("one reaction", "a reaction" === reaction());
+    console.log('onConnect {"a":1}', 'onConnect {"a":1}' === onConnect.call({ a: 1 }));
+  });
+
+  runTest(async _ => {
+    const PORTALS = new DefinitionsMap();
+
+    const one = PORTALS.get("one");
+    waitForIt(1000, _ => {
+      PORTALS.define("one", {
+        reaction: _ => "a reaction",
+        onConnect: function () { return "onConnect " + JSON.stringify(this); },
+        onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
+        value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
+        parseArguments: fullName => fullName.split(/[_.]/).slice(1),
+      });
+    });
+    const { reaction, onConnect } = await one;
+
+    console.log("one reaction", "a reaction" === reaction());
+    console.log('onConnect {"a":1}', 'onConnect {"a":1}' === onConnect.call({ a: 1 }));
+  });
+
+  runTest(async _ => {
+    const PORTALS = new DefinitionsMap();
+
+    const one = PORTALS.get("one");
+    waitForIt(1000, _ => {
+      PORTALS.define("one", {
+        reaction: waitForIt(1000, _ => _ => "a reaction"),
+        onConnect: function () { return "onConnect " + JSON.stringify(this); },
+        onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
+        value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
+        parseArguments: fullName => fullName.split(/[_.]/).slice(1),
+      });
+    });
+    const { reaction, onConnect } = await one;
+    console.log(reaction.constructor.name);
+    await reaction;
+    console.log(reaction.constructor.name);
+
+    console.log("one reaction", "a reaction" === reaction());
+    console.log('onConnect {"a":1}', 'onConnect {"a":1}' === onConnect.call({ a: 1 }));
+  });
+
+</script>
