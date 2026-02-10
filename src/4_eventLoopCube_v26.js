@@ -7,7 +7,6 @@ class MicroFrame {
     this.at = at;
     this.event = event;
     this.names = at.name.split(":");
-    this.portals = this.names.map(name => at.ownerElement.getRootNode().portals.get(name));
     this.#inputs = [event];
   }
 
@@ -20,7 +19,7 @@ class MicroFrame {
   }
 
   getPortal() {
-    return this.portals[this.#i];
+    return this.at.ownerElement.getRootNode().portals.get(this.names[this.#i]);
   }
 
   getReactionIndex() {
@@ -57,7 +56,7 @@ class MicroFrame {
         portal.finally(_ => this.__eventLoop.asyncContinue(this));
         return;
       }
-      const reaction = portal.reactions.get(re);
+      const reaction = portal.reaction;
       if (reaction === null) {
         this.#runError(new Error("reaction is null: " + re));
         continue;
@@ -220,7 +219,7 @@ class EventLoopCube {
     if (portal.properties)
       Object.defineProperties(at, portal.properties);
     portal.onConnect.call(at);
-    if ("onDisconnect" in portal) {
+    if (portal.onDisconnect) {
       const set = downGrades.get(portal) ?? new Set();
       set.add(at);
       downGrades.set(portal, set);
