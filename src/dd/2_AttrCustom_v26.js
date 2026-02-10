@@ -57,12 +57,6 @@ class AttrCustom extends Attr {
     eventLoop.dispatch(e, this);
   }
 
-  static upgradeBranch(...els) {
-    for (let el of els)
-      for (const at of DoubleDots.walkAttributes(el))
-        AttrCustom.upgrade(at);
-  }
-
   static #ids = 0;
   static errorMap = new Map();
   static upgrade(at, Def) {
