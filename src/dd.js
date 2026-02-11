@@ -16,14 +16,11 @@ document.readyState !== "loading" ?
   document.addEventListener("DOMContentLoaded", _ =>
     eventLoopCube.connectBranch(document.documentElement));
 
-// import * as define from "../../x/define/v25x.js";
-// import * as template from "../../x/template/v25.js";
 // import * as wait from "../../x/wait/v1.js";
 //todo this should probably be Wait_ too
 //Wait_100:do-something:at.repeat //which would enable us to have a set timeout
 
 // document.definePortal("template", template);
-// document.definePortal("define", define);
 // document.definePortal("wait", wait);
 // document.definePortal("prevent-default", { reactions: {i => (eventLoop.event.preventDefault(), i)] });
 // document.definePortal("log", { log: function (...i) { console.log(this, ...i); return i[0]; } });

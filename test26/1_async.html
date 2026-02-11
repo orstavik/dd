@@ -1,8 +1,12 @@
+<pre>
+should print: 
+  hello i:hello="sunshine"
+</pre>
+
 <script type="module">
 
   import * as dd from "../src/dd.js";
 
-  debugger;
   document.portals.define("hello", {
     reaction: function () { console.log("hello", this); },
   });
