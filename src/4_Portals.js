@@ -41,8 +41,12 @@ const Intersection = {
     this._observer.observe(this.ownerElement);
   }
 }
+const I = {
+  onConnect: function () { eventLoopCube.dispatch(null, this); },
+}
 
 export {
+  I,
   Attr,
   Intersection,
   Resize
