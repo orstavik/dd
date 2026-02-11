@@ -1,11 +1,11 @@
-<div click:hello="you have been clicked" style="border: 1px solid black;">
+<div click:log="you have been clicked" style="border: 1px solid black;">
   ----------------
   <br>
   click anywhere inside here to console.log a click event.
   <br>
   ----------------
   <br>
-  <div i:click="hello">click on startup</div>
+  <div i:click="log">click on startup</div>
   <br>
   ----------------
 </div>
@@ -13,13 +13,13 @@
 
   import * as dd from "../src/dd.js";
 
-  document.portals.define("hello", {
-    reaction: function () { console.log("hello", this); },
+  document.portals.define("log", {
+    reaction: function () { console.log(this); },
   });
 
   document.portals.define("click", {
     onConnect: function () {
-      this.ownerElement.addEventListener("click");
+      this.ownerElement.addEventListener("click", e => eventLoopCube.dispatch(e, this));
     },
     reaction: function () { this.ownerElement.click(); },
   });

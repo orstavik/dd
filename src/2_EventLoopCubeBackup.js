@@ -33,7 +33,7 @@ class MicroFrame {
       if (portal instanceof Error)
         return this.#endError(portal);
       if (portal instanceof Promise)
-        return portal.finally(_ => queueMicrotask(_ => this.run()));  //#1 race condition when both triggers and reactions await the same portal
+        return portal.finally(_ => requestMicroTask(_ => this.run()));  //#1 race condition when both triggers and reactions await the same portal
       if (portal.reaction === null)
         return this.#endError(new Error("reaction is null: " + re));
       try {
@@ -138,8 +138,7 @@ export class EventLoopCube {
   constructor(disconnectInterval = 1000, cleanupInterval = 3000) {
     //runs its own internal gc
     setInterval(_ => this.disconnect(), disconnectInterval);
-    // todo the filter is not implemented yet
-    //q setInterval(_ => this.cleanup(), cleanupInterval);
+    setInterval(_ => this.cleanup(), cleanupInterval);
   }
 
   static Break = Symbol("Break");
@@ -173,7 +172,7 @@ export class EventLoopCube {
       return;
     const frame = new ConnectFrame(at);
     this.#atToConnectFrames.set(at, frame);
-    this.#loop(frame);
+    this.#cube.push(frame);
   }
   disconnect() {
     for (let frame of this.#cube)
@@ -181,9 +180,10 @@ export class EventLoopCube {
         frame.disconnect?.call(frame.at);
   }
   async cleanup(filter = EventLoopCube.defaultCleanupFilter) {
-    const keeps = this.#cube.slice(0, this.#I).filter(filter);
-    this.#cube = [...keeps, ...this.#cube.slice(this.#I)];
-    this.#I = keeps.length;
+    //todo
+    // const keeps = this.#cube.slice(0, this.#I).filter(filter);
+    // this.#cube = [...keeps, ...this.#cube.slice(this.#I)];
+    // this.#I = keeps.length;
   }
   connectBranch(...els) {
     for (let el of els)
