@@ -17,11 +17,11 @@
     reaction: function () { console.log(this); },
   });
 
-  document.portals.define("click", {
-    onConnect: function () {
-      this.ownerElement.addEventListener("click", e => eventLoopCube.dispatch(e, this));
-    },
-    reaction: function () { this.ownerElement.click(); },
-  });
+  // document.portals.define("click", {
+  //   onConnect: function () {
+  //     this.ownerElement.addEventListener("click", e => eventLoopCube.dispatch(e, this));
+  //   },
+  //   reaction: function () { this.ownerElement.click(); },
+  // });
 
 </script>

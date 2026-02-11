@@ -1,9 +1,10 @@
 import { PortalMap } from "./1_PortalMap.js";
+import { NativePortalMap } from "./1b_NativePortals.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I } from "./4_Portals.js";
 
-const PORTALS = new PortalMap();
+const PORTALS = new (NativePortalMap(PortalMap))();
 Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
 document.portals.define("i", I);
