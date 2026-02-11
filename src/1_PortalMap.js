@@ -28,7 +28,6 @@ function checkArrowThis(func) {
 export class PortalMap {
 
   #portals = {};
-  #requested = {};
 
   define(name, Portal) {
     if (!name.match(/^[a-z][a-z0-9]*$/))
@@ -70,20 +69,41 @@ export class PortalMap {
         properties.value = { ...OG, set };
       }
       Portal = { name, onConnect, onDisconnect, reaction, parseArguments, properties };
-
     } catch (err) {
       Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
     }
-    const promise = this.#portals[name];
-    if (!promise)
+    if (!this.#portals[name])
       return this.#portals[name] = Portal;
-    promise[Resolver](Portal);  //#1 this requires that the use of the getReaction is delayed a microTask tick, so that triggers run first.
-    queueMicrotask(() => this.#portals[name] = Portal);
+    this.#portals[name][Resolver](Portal);             //ATT!!  TriggerReactionRaceCondition
+    queueMicrotask(_ => this.#portals[name] = Portal); //ATT!!  TriggerReactionRaceCondition  STAGE 2
   }
 
   portalNameCache = {};
-  get(fullName) {
+  getTrigger(fullName) {
     const name = this.portalNameCache[fullName] ??= fullName.split(/[._:]/)[0];
     return this.#portals[name] ??= PromiseResolver();
   }
+  getReaction(fullName) {
+    const res = this.getTrigger(fullName);
+    return res[Resolver] ?
+      res.then(portal => queueMicrotask(_ => portal)) : //ATT!!  TriggerReactionRaceCondition STAGE 1
+      res;
+  }
 }
+/**
+ * TriggerReactionRaceCondition
+ * -------------------------------------------------------------------------
+ * How to ensure that portals always trigger queued .onConnected before any .reactions for the same portal?
+ * -------------------------------------------------------------------------
+ * 
+ * If both a reaction and trigger awaits the same portal definition, then
+ * the reaction is often registered first in the FIFO microtask queue.
+ * However, portals always function reaction => triggers (not the other way round).
+ * This means that we always want all the portal's triggers to be ready before we run any of the portal's reactions.
+ * 
+ * STAGE 1: Ensure that any already queued reactions are put at the end of the microtask queue.
+ * STAGE 2: Ensure that any reactions encountered *sync* in the eventLoopCube loop() are queued until after the already
+ * queued triggers are started.
+ * STAGE 3: NOT fixed. If any triggers for this reaction are added during the running of the setup stage, 
+ * they will be run after any added sync reactions. 
+ */

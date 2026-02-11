@@ -27,13 +27,13 @@ class MicroFrame {
 
   run() {
     for (let re = this.names[this.#i]; re !== undefined; re = this.names[this.#i]) {
-      const portal = this.root.portals.get(re);
+      const portal = this.root.portals.getReaction(re);
       if (portal === null)
         return this.#endError(new Error("portal is null: " + re));
       if (portal instanceof Error)
         return this.#endError(portal);
       if (portal instanceof Promise)
-        return portal.finally(_ => queueMicrotask(_ => this.run()));  //#1 race condition when both triggers and reactions await the same portal
+        return portal.finally(_ => this.run());
       if (portal.reaction === null)
         return this.#endError(new Error("reaction is null: " + re));
       try {
@@ -67,7 +67,7 @@ class ConnectFrame {
   #value;
   constructor(at) {
     this.at = at;
-    this.portal = at.ownerElement.getRootNode().portals.get(at.name);
+    this.portal = at.ownerElement.getRootNode().portals.getTrigger(at.name);
     this.#init();
     this.disconnect = this.portal.onDisconnect;
   }
@@ -191,9 +191,3 @@ export class EventLoopCube {
         this.connect(at);
   }
 }
-// #1 race condition when both triggers and reactions await the same portal
-// -------------------------------------------------------------------------
-// If both a reaction and trigger awaits the same portal definition, the reaction is often registered first and thus first in the FIFO micro task queue.
-// But the message structure in portals are reaction => triggers (not the other way round),
-// so we want the triggers to be set up first and then the reactions for the same portals triggered afterwards.
-// Therefore we explicitly put the reaction portal awaits at the end of the microTask queue when the portal first resolves.
