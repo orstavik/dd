@@ -1,113 +1,57 @@
-function* walkAttributes(root) {
-  if (root.attributes)
-    yield* Array.from(root.attributes);
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-  for (let n; n = walker.nextNode();) {
-    yield* Array.from(n.attributes);
-    if (n.shadowRoot)
-      yield* walkAttributes(n.shadowRoot);
-  }
-}
-
-function connectBranch(els) {
-  for (let el of els)
-    for (const at of walkAttributes(el))
-      window.eventLoopCube.connect(at);
-}
-
-function monkeyPatch() {
-
-  function setAttribute_DD(og, name, value) {
-    const at = this.getAttributeNode(name);
-    if (at) {
-      at.value !== value && (at.value = value);
-      return;
-    }
-    const res = og.call(this, name, value);
-    this.isConnected && AttrCustom.upgrade(this.getAttributeNode(name));
-    return res;
-  }
-
-  function upgradeables(parent, ...args) {
-    const parentRoot = parent.getRootNode();
-    return args.filter(a => {
-      if (a.isConnected && a.getRootNode() != parentRoot)
-        throw new Error("Adoption is illegal in DD.");
-      // if(a.isConnected) to move nodes around is allowed, but you don't get a onConnect callback
-      return !a.isConnected;
-    });
-  }
+export function monkeyPatchAppendElements(onNodesConnected) {
 
   function insertArgs(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(toBeUpgraded);
+    onNodesConnected(...args);
     return res;
   }
   function insertArgs0(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, args[0]);
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(toBeUpgraded);
+    onNodesConnected(args[0]);
     return res;
   }
   function insertArgs1(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, args[1]);
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(toBeUpgraded);
+    onNodesConnected(args[1]);
     return res;
   }
   function range_surroundContent(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, args[0]); //needed to validate the args[0]
-    if (!this.isConnected)
-      return og.call(this, ...args);
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(toBeUpgraded);
+    onNodesConnected(args[0]);
     return res;
   }
   function element_replaceWith(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
-    const wasConnected = this.isConnected;
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    if (wasConnected) {
-      this.isConnected && connectBranch(toBeUpgraded);
-    }
+    onNodesConnected(...args);
     return res;
   }
   function parentnode_replaceChildren(og, ...args) {
-    const toBeUpgraded = this.isConnected && upgradeables(this, ...args);
+    if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(toBeUpgraded);
+    onNodesConnected(...args);
     return res;
   }
   function innerHTMLsetter(og, ...args) {
     if (!this.isConnected) return og.call(this, ...args);
     const res = og.call(this, ...args);
-    this.isConnected && connectBranch(this.children);
+    onNodesConnected(...this.children);
     return res;
   }
   function outerHTMLsetter(og, ...args) {
-    if (!this.isConnected || !this.parentNode) return og.call(this, ...args);
+    if (!this.isConnected) return og.call(this, ...args);
     const sibs = [...this.parentNode.children];
     const res = og.call(this, ...args);
     const sibs2 = [...this.parentNode.children].filter(n => !sibs.includes(n));
-    this.isConnected && connectBranch(sibs2);
-    return res;
-  }
-  function innerTextSetter(og, ...args) {
-    if (!this.isConnected) return og.call(this, ...args);
-    const res = og.call(this, ...args);
-    this.isConnected && connectBranch(this.children);
-    return res;
-  }
-  function textContentSetter(og, ...args) {
-    if (this.nodeType !== Node.ELEMENT_NODE && this.nodeType !== Node.DOCUMENT_FRAGMENT_NODE)
-      return og.call(this, ...args);
-    if (!this.isConnected) return og.call(this, ...args);
-    const res = og.call(this, ...args);
-    this.isConnected && connectBranch(this.children);
+    onNodesConnected(...sibs2);
     return res;
   }
   function insertAdjacentHTML_DD(og, position, ...args) {
+    if (!this.isConnected) return og.call(this, position, ...args);
     let root, index;
     if (position === "afterbegin")
       root = this, index = 0;
@@ -121,13 +65,11 @@ function monkeyPatch() {
     const res = og.call(this, position, ...args);
     const addCount = root.children.length - childCount;
     const newRoots = Array.from(root.children).slice(index, index + addCount);
-    this.isConnected && connectBranch(newRoots);
+    onNodesConnected(...newRoots);
     return res;
   }
 
   const map = [
-    [Element.prototype, "setAttribute", setAttribute_DD],
-
     [Element.prototype, "append", insertArgs],
     [Element.prototype, "prepend", insertArgs],
     [Element.prototype, "before", insertArgs],
@@ -156,8 +98,6 @@ function monkeyPatch() {
     [Element.prototype, "innerHTML", innerHTMLsetter],
     [ShadowRoot.prototype, "innerHTML", innerHTMLsetter],
     [Element.prototype, "outerHTML", outerHTMLsetter],
-    [Node.prototype, "textContent", textContentSetter],
-    [HTMLElement.prototype, "innerText", innerTextSetter],
   ];
 
   for (const [obj, prop, monkey] of map) {
@@ -169,9 +109,4 @@ function monkeyPatch() {
     Object.defineProperty(obj, prop,
       Object.assign({}, d, { [d.set ? "set" : "value"]: monkey2 }));
   }
-}
-
-export {
-  connectBranch,
-  monkeyPatch,
 }

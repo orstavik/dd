@@ -1,27 +1,49 @@
 // import { } from "./1_DoubleDots.js";
 // import { Attr, Intersection, Resize } from "./2_AttrCustom_v26.js";
-import { DefinitionsMap } from "./3_definition_registers_v26.js";
-import { EventLoopCube, GC_doubleDots } from "./4_eventLoopCube_v26.js";
-import { connectBranch, monkeyPatch } from "./5_load_DoubleDots_v26.js";
+import { PortalMap } from "./3_PortalMap.js";
+import { EventLoopCube } from "./4_EventLoopCube.js";
+import { monkeyPatchAppendElements } from "./5_monkeyPatchAppendElements.js";
 
-const PORTALS = new DefinitionsMap();
+const PORTALS = new PortalMap();
 Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
 
 document.portals.define("i", {
-  onConnect: function () { window.eventLoopCube.dispatch("i", this); },
+  onConnect: function () { eventLoopCube.dispatch("i", this); },
 });
 
-window.eventLoopCube = new EventLoopCube();
+//setting up event loop cube
+const eventLoopCube = window.eventLoopCube = new EventLoopCube(1000, 3000);
 
-setInterval(GC_doubleDots, 1000);
-monkeyPatch();
-
+//we are getting all the triggers 
+monkeyPatchAppendElements(eventLoopCube.connectBranch.bind(eventLoopCube));
 (function loadDoubleDots() {
   if (document.readyState !== "loading")
-    return connectBranch([document.documentElement]);
-  document.addEventListener("DOMContentLoaded", _ => connectBranch([document.documentElement]));
+    return eventLoopCube.connectBranch(document.documentElement);
+  document.addEventListener("DOMContentLoaded", _ => eventLoopCube.connectBranch(document.documentElement));
 })();
+
+// function shimRequestIdleCallback(setTimeoutOG = window.setTimeout) {
+//   window.requestIdleCallback ??= function requestIdleCallback(cb, { timeout = Infinity } = {}) {
+//     const callTime = performance.now();
+//     return setTimeoutOG(_ => {
+//       const start = performance.now();
+//       cb({
+//         didTimeout: (performance.now() - callTime) >= timeout,
+//         timeRemaining: () => Math.max(0, 50 - (performance.now() - start))
+//       });
+//     }, 16);
+//   };
+//   window.cancelIdleCallback ??= clearTimeout;
+// }
+// shimRequestIdleCallback(setTimeout);
+
+
+
+
+
+
+
 
 
 // import * as define from "../../x/define/v25x.js";

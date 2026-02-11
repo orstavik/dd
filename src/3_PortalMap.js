@@ -26,7 +26,7 @@ function checkArrowThis(func) {
   return func;
 }
 
-class DefinitionsMap {
+export class PortalMap {
 
   #portals = {};
   #requested = {};
@@ -91,7 +91,4 @@ class DefinitionsMap {
     const name = this.portalNameCache[fullName] ??= fullName.split(/[._:]/)[0];
     return this.#portals[name] ?? (this.#requested[name] ??= PromiseResolver());
   }
-}
-export {
-  DefinitionsMap,
 }
