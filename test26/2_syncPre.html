@@ -1,11 +1,11 @@
+<pre i:hello="sunshine">
+should print: 
+  hello i:hello="sunshine"
+</pre>
+
 <script src="../build/dd.js"></script>
 <script>
   document.portals.define("hello", {
     reaction: function () { console.log("hello", this); },
   });
 </script>
-
-<pre i:hello="sunshine">
-should print: 
-  hello i:hello="sunshine"
-</pre>

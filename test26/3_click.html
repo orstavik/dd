@@ -1,0 +1,27 @@
+<div click:hello="you have been clicked" style="border: 1px solid black;">
+  ----------------
+  <br>
+  click anywhere inside here to console.log a click event.
+  <br>
+  ----------------
+  <br>
+  <div i:click="hello">click on startup</div>
+  <br>
+  ----------------
+</div>
+<script type="module">
+
+  import * as dd from "../src/dd.js";
+
+  document.portals.define("hello", {
+    reaction: function () { console.log("hello", this); },
+  });
+
+  document.portals.define("click", {
+    onConnect: function () {
+      this.ownerElement.addEventListener("click");
+    },
+    reaction: function () { this.ownerElement.click(); },
+  });
+
+</script>
