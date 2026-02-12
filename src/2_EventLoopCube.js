@@ -198,7 +198,7 @@ export class EventLoopCube {
     }
     frames.length && this.#loop(frames);
   }
-  //todo the eventLoop should have a root! That is the problem.. I think this is a better fix!
+
   connectPortal(portalName, portal, root) {
     if (!root[PORTALS]) return; //todo we havn't started yet, so this should not yet run.
     const frames = [];
