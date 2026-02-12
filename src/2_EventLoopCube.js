@@ -1,3 +1,8 @@
+//todo this we need to put into the PortalMap?? Or should it be in the eventLoopCube??
+const NameCache = Object.create(null);
+const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
+setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
+
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -149,7 +154,7 @@ export class EventLoopCube {
   }
 
   static Break = Symbol("Break");
-  #cube = []; //[...events : [...microFrames]]
+  #cube = []; //[...events : [...microFrames]]  //todo in a more efficient world, this would be a single flat array.
   #I = 0;
   #J = 0;
   #active = false;
@@ -184,13 +189,11 @@ export class EventLoopCube {
     this.#I = keeps.length;
   }
   connectBranch(...els) {
-    let portalMap;
+    const portalMap = els[0]?.ownerDocument.portals;
     const frames = [];
     for (let el of els) {
-      portalMap ??= el.ownerDocument.portals;
       const task = !el[PORTALS] ? doFirstConnect : el.isConnected ? doMove : doReConnect;
-      frames.push(...task(el, portalMap));
-      for (let el2 of el.getElementsByTagName("*"))
+      for (let el2 = el, subs = el.getElementsByTagName("*"), i = 0; el2; el2 = subs[i++])
         frames.push(...task(el2, portalMap));
     }
     frames.length && this.#loop(frames);
@@ -245,8 +248,3 @@ function* doReConnect(el) {
           if (portalNames(at.name)[0] === portalName)
             yield new ReConnectFrame(el[PORTALS][portalName], at);
 }
-
-//todo this we need to put into the PortalMap?? Or should it be in the eventLoopCube??
-const NameCache = Object.create(null);
-const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
-setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC

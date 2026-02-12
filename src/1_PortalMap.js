@@ -49,7 +49,7 @@ export class PortalMap {
         Portal = await Portal;
       if (!(Portal instanceof Object))
         throw new TypeError(`Portal Definition is not an object.`);
-      let { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
+      let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction, parseArguments, properties, value } = Portal;
       Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction, parseArguments, properties, value };
       if (!onFirstConnect && !reaction)
         throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
