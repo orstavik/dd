@@ -14,11 +14,23 @@
     if (/\bthis\b/.test(txt))
       throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
   }
+  function verifyPortalDefinition(name, Portal) {
+    if (!(Portal instanceof Object))
+      throw new TypeError(`Portal Definition is not an object.`);
+    let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
+    if (!onFirstConnect && !reaction)
+      throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
+    if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
+      throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+    if (onDisconnect && !onReConnect)
+      throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
+    return { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+  }
   var PortalMap = class {
     #portals = /* @__PURE__ */ Object.create(null);
     #portalRequests = /* @__PURE__ */ Object.create(null);
     #root;
-    setDocument(root) {
+    constructor(root) {
       this.#root = root;
     }
     define(name, Portal) {
@@ -32,30 +44,16 @@
       try {
         if (Portal instanceof Promise)
           Portal = await Portal;
-        if (!(Portal instanceof Object))
-          throw new TypeError(`Portal Definition is not an object.`);
-        let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
-        Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
-        if (!onFirstConnect && !reaction)
-          throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
-        if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
-          throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
-        const promises = [onFirstConnect, onDisconnect, reaction].filter((o) => o instanceof Promise);
-        if (promises.length)
-          await Promise.all(promises);
-        reaction && checkArrowThis(reaction);
-        onFirstConnect && checkArrowThis(onFirstConnect);
-        onMove && checkArrowThis(onMove);
-        onReConnect && checkArrowThis(onReConnect);
-        onDisconnect && checkArrowThis(onDisconnect);
-        Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+        Portal = verifyPortalDefinition(name, Portal);
+        const promises = Object.values(Portal).filter((o) => o instanceof Promise);
+        if (promises.length) await Promise.all(promises);
+        Object.values(Portal).filter((o) => typeof o === "function").forEach(checkArrowThis);
+        this.#portals[name] = Portal;
+        window.eventLoopCube.connectPortal(name, Portal, this.#root);
       } catch (err) {
-        Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
-      }
-      this.#portals[name] = Portal;
-      window.eventLoopCube.connectPortal(name, Portal, this.#root);
-      if (this.#portalRequests[name]) {
-        this.#portalRequests[name][Resolver](Portal);
+        this.#portals[name] = new TypeError(`Error defining portal '${name}': ${err.message}`);
+      } finally {
+        this.#portalRequests[name]?.[Resolver](this.#portals[name]);
         delete this.#portalRequests[name];
       }
     }
@@ -66,6 +64,201 @@
       return this.#portals[portalName] ?? (this.#portalRequests[portalName] ??= PromiseResolver());
     }
   };
+
+  // src/1b_NativePortals.js
+  var DocumentOnlyEvents = /* @__PURE__ */ new Set(["readystatechange", "pointerlockchange", "pointerlockerror", "freeze", "prerenderingchange", "resume", "visibilitychange"]);
+  var WindowOnlyEvents = /* @__PURE__ */ new Set([
+    "appinstalled",
+    "beforeinstallprompt",
+    "afterprint",
+    "beforeprint",
+    "beforeunload",
+    "hashchange",
+    "languagechange",
+    "message",
+    "messageerror",
+    "offline",
+    "online",
+    "pagehide",
+    "pageshow",
+    "popstate",
+    "rejectionhandled",
+    "storage",
+    "unhandledrejection",
+    "unload",
+    "devicemotion",
+    "deviceorientation",
+    "deviceorientationabsolute",
+    "pageswap",
+    "pagereveal",
+    "YouTubeIframeAPIReady"
+  ]);
+  var DomEvents = /* @__PURE__ */ new Set([
+    "touchstart",
+    "touchmove",
+    "touchend",
+    "touchcancel",
+    "beforexrselect",
+    "abort",
+    "beforeinput",
+    "beforematch",
+    "beforetoggle",
+    "blur",
+    "cancel",
+    "canplay",
+    "canplaythrough",
+    "change",
+    "click",
+    "close",
+    "contentvisibilityautostatechange",
+    "contextlost",
+    "contextmenu",
+    "contextrestored",
+    "cuechange",
+    "dblclick",
+    "drag",
+    "dragend",
+    "dragenter",
+    "dragleave",
+    "dragover",
+    "dragstart",
+    "drop",
+    "durationchange",
+    "emptied",
+    "ended",
+    "error",
+    "focus",
+    "formdata",
+    "input",
+    "invalid",
+    "keydown",
+    "keypress",
+    "keyup",
+    "load",
+    "loadeddata",
+    "loadedmetadata",
+    "loadstart",
+    "mousedown",
+    "mouseenter",
+    "mouseleave",
+    "mousemove",
+    "mouseout",
+    "mouseover",
+    "mouseup",
+    "mousewheel",
+    "pause",
+    "play",
+    "playing",
+    "progress",
+    "ratechange",
+    "reset",
+    "resize",
+    "scroll",
+    "securitypolicyviolation",
+    "seeked",
+    "seeking",
+    "select",
+    "slotchange",
+    "stalled",
+    "submit",
+    "suspend",
+    "timeupdate",
+    "toggle",
+    "volumechange",
+    "waiting",
+    "webkitanimationend",
+    "webkitanimationiteration",
+    "webkitanimationstart",
+    "webkittransitionend",
+    "wheel",
+    "auxclick",
+    "gotpointercapture",
+    "lostpointercapture",
+    "pointerdown",
+    "pointermove",
+    "pointerrawupdate",
+    "pointerup",
+    "pointercancel",
+    "pointerover",
+    "pointerout",
+    "pointerenter",
+    "pointerleave",
+    "selectstart",
+    "selectionchange",
+    "animationend",
+    "animationiteration",
+    "animationstart",
+    "transitionrun",
+    "transitionstart",
+    "transitionend",
+    "transitioncancel",
+    "copy",
+    "cut",
+    "paste",
+    "command",
+    "scrollend",
+    "scrollsnapchange",
+    "scrollsnapchanging",
+    "beforecopy",
+    "beforecut",
+    "beforepaste",
+    "search",
+    "fullscreenchange",
+    "fullscreenerror",
+    "webkitfullscreenchange",
+    "webkitfullscreenerror"
+  ]);
+  var allNames = /* @__PURE__ */ new Set(["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...DomEvents]);
+  var isReservedName = (name) => allNames.has(name) && new TypeError(`Cannot define native event name as portal '${name}'.`);
+  var ListenerCache = /* @__PURE__ */ Object.create(null);
+  var PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)(?!-prevents)$/;
+  function domEventOptions(NAME) {
+    if (PASSIVE.test(NAME)) return { passive: true };
+  }
+  var ElementEvent = (NAME) => Object.freeze({
+    onFirstConnect: function() {
+      this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this), domEventOptions(NAME));
+    },
+    reaction: function() {
+      this.ownerElement.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
+    }
+  });
+  var DocumentEvent = (NAME) => Object.freeze({
+    onFirstConnect: function() {
+      this.ownerElement.getRootNode().addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this));
+    },
+    reaction: function() {
+      this.ownerElement.getRootNode().dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
+    }
+  });
+  var WindowEvent = (NAME) => Object.freeze({
+    onFirstConnect: function() {
+      window.addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this));
+    },
+    reaction: function() {
+      window.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
+    }
+  });
+  var CACHE = /* @__PURE__ */ Object.create(null);
+  var getNativeEvent = (NAME) => {
+    if (NAME in CACHE)
+      return CACHE[NAME];
+    const portal = NAME.split(/[._:]/)[0];
+    return CACHE[NAME] = CACHE[portal] ?? (DomEvents.has(portal) ? ElementEvent(portal) : WindowOnlyEvents.has(portal) ? WindowEvent(portal) : DocumentOnlyEvents.has(portal) ? DocumentEvent(portal) : portal === "dcl" ? DocumentEvent("DOMContentLoaded") : void 0);
+  };
+  function NativePortalMap(PortalMap3) {
+    return class NativePortalMap extends PortalMap3 {
+      define(name, Portal) {
+        return isReservedName(name) || super.define(name, Portal);
+      }
+      getReaction(name) {
+        return getNativeEvent(name) ?? super.getReaction(name);
+      }
+      get(name) {
+        return getNativeEvent(name) ?? super.get(name);
+      }
+    };
+  }
 
   // src/2_EventLoopCube.js
   var NameCache = /* @__PURE__ */ Object.create(null);
@@ -117,66 +310,39 @@
       this.#i = res === EventLoopCube2.Break ? this.names.length : this.#i + 1;
     }
   };
-  var ConnectFrame = class {
-    #state = "connected";
+  var ConnectFrame = class _ConnectFrame {
+    #state;
     #value;
-    constructor(portal, at, value) {
+    constructor(type, at, value, portal) {
+      this.type = type;
+      this.#state = type;
       this.at = at;
       this.portal = portal;
       this.#value = value;
-      if (value instanceof Promise) {
-        this.#state = "awaiting value";
-        this.#init();
-      }
-      this.disconnect = this.portal.onDisconnect;
     }
-    getState() {
-      return {
-        at: this.at,
-        state: this.#state,
-        value: this.#value
-      };
-    }
-    async #init() {
+    async update() {
+      this.#state = "awaiting value";
       try {
         this.#value = await this.#value;
-        this.#state = "connected";
+        this.#state = this.type;
       } catch (err) {
         this.#value = err;
         this.#state = "error onFirstConnect";
       }
     }
-    async disconnect() {
-      this.#state = "could not disconnect because not properly connected";
-      if (this.#state !== "connected") return;
-      this.#state = "calling disconnect on ConnectFrame that doesn't have onDisconnect.";
-      if (this.portal.onDisconnect == null) return;
-      try {
-        this.#state = "calling onDisconnect";
-        this.#value = this.portal.onDisconnect.call(this.at);
-        if (this.#value instanceof Promise) {
-          this.#state = "awaiting onDisconnect";
-          await this.#value;
-        }
-        this.#state = "disconnected";
-      } catch (err) {
-        this.#value = err;
-        this.#state = "error calling onDisconnect";
-      }
+    static make(type, portal, at, value) {
+      const res = new _ConnectFrame(type, at, value, portal);
+      if (value instanceof Promise)
+        res.update();
+      return res;
     }
-  };
-  var ReConnectFrame = class {
-    constructor(portal, at) {
-      this.portal = portal;
-      this.at = at;
-      this.value = portal.onReConnect.call(at);
-    }
-  };
-  var MoveFrame = class {
-    constructor(portal, at) {
-      this.portal = portal;
-      this.at = at;
-      this.value = portal.onMove.call(at);
+    getState() {
+      return {
+        type: this.type,
+        at: this.at,
+        state: this.#state,
+        value: this.#value
+      };
     }
   };
   var EventLoopCube2 = class _EventLoopCube {
@@ -191,6 +357,7 @@
     #I = 0;
     #J = 0;
     #active = false;
+    #disconnectables = /* @__PURE__ */ new Map();
     get state() {
       return this.#cube.map((row) => row.getState?.() || row.map((mf) => mf.getState()));
     }
@@ -215,9 +382,12 @@
       this.#loop([...iter].map((at) => new MicroFrame(e, at)));
     }
     disconnect() {
-      for (let frame of this.#cube)
-        if (frame instanceof ConnectFrame)
-          frame.disconnect?.call(frame.at);
+      for (let at of this.#disconnectables.keys())
+        if (!at.ownerElement.isConnected) {
+          const portal = this.#disconnectables.get(at);
+          ConnectFrame.make("onDisconnect", portal, at, portal.onDisconnect?.call(at));
+          this.#disconnectables.delete(at);
+        }
     }
     async cleanup(filter = _EventLoopCube.defaultCleanupFilter) {
       const keeps = this.#cube.slice(0, this.#I).filter(filter);
@@ -228,13 +398,54 @@
       const portalMap = els[0]?.ownerDocument.portals;
       const frames = [];
       for (let top of els) {
-        const task = !top[PORTALS] ? doFirstConnect : top.isConnected ? doMove : doReConnect;
+        const task = !top[PORTALS] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
         for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
-          frames.push(...task(el, portalMap));
+          if (task === "doFirstConnect") {
+            if (!el.hasAttributes())
+              continue;
+            el[PORTALS] = /* @__PURE__ */ Object.create(null);
+            for (let at of el.attributes) {
+              const portalName = portalNames(at.name)[0];
+              const portal = portalMap.get(portalName);
+              el[PORTALS][portalName] ??= void 0;
+              if (portal?.onFirstConnect) {
+                const res = portal.onFirstConnect.call(at);
+                const frame = ConnectFrame.make("onFirstConnect", portal, at, res);
+                if (res !== _EventLoopCube.Break) {
+                  frames.push(frame);
+                  el[PORTALS][portalName] = portal;
+                  el[MOVEABLES] ||= !!portal.onMove;
+                  el[RECONNECTABLES] ||= !!portal.onReconnect;
+                  portal.onDisconnect && this.#disconnectables.set(at, portal);
+                }
+              }
+            }
+          } else if (task === "doMove") {
+            if (el[MOVEABLES])
+              for (let portalName in el[PORTALS]) {
+                const portal = el[PORTALS][portalName];
+                if (portal?.onMove) {
+                  for (let at of el.attributes)
+                    if (portalNames(at.name)[0] === portalName)
+                      frames.push(ConnectFrame.make("onMove", portal, at, portal.onMove.call(at)));
+                }
+              }
+          } else if (task === "doReConnect") {
+            if (el[RECONNECTABLES])
+              for (let portalName in el[PORTALS]) {
+                const portal = el[PORTALS][portalName];
+                if (portal?.onReconnect) {
+                  for (let at of el.attributes)
+                    if (portalNames(at.name)[0] === portalName)
+                      frames.push(ConnectFrame.make("onReConnect", portal, at, portal.onReconnect.call(at)));
+                }
+              }
+          }
         }
       }
       frames.length && this.#loop(frames);
     }
+    //todo the eventLoop should have a root! That is the problem.. I think this is a better fix!
     connectPortal(portalName, portal, root) {
       if (!root[PORTALS]) return;
       const frames = [];
@@ -252,45 +463,6 @@
   var PORTALS = Symbol("portals");
   var MOVEABLES = Symbol("moveables");
   var RECONNECTABLES = Symbol("reconnectables");
-  function* doFirstConnect(el, portalMap) {
-    if (!el.hasAttributes())
-      return;
-    el[PORTALS] = /* @__PURE__ */ Object.create(null);
-    for (let at of el.attributes) {
-      const portalName = portalNames(at.name)[0];
-      const portal = portalMap.get(portalName);
-      el[PORTALS][portalName] ??= void 0;
-      if (portal?.onFirstConnect) {
-        const res = portal.onFirstConnect.call(at);
-        if (res !== EventLoopCube2.Break) {
-          yield new ConnectFrame(portal, at, res);
-          el[PORTALS][portalName] = portal;
-          el[MOVEABLES] ||= !!portal.onMove;
-          el[RECONNECTABLES] ||= !!portal.onReconnect;
-        }
-      }
-    }
-  }
-  function* doMove(el) {
-    if (el[MOVEABLES]) {
-      for (let portalName in el[PORTALS])
-        if (el[PORTALS][portalName]?.onMove) {
-          for (let at of el.attributes)
-            if (portalNames(at.name)[0] === portalName)
-              yield new MoveFrame(el[PORTALS][portalName], at);
-        }
-    }
-  }
-  function* doReConnect(el) {
-    if (el[RECONNECTABLES]) {
-      for (let portalName in el[PORTALS])
-        if (el[PORTALS][portalName]?.onReconnect) {
-          for (let at of el.attributes)
-            if (portalNames(at.name)[0] === portalName)
-              yield new ReConnectFrame(el[PORTALS][portalName], at);
-        }
-    }
-  }
 
   // src/3_monkeyPatchAppendElements.js
   function monkeyPatchAppendElements(onNodesConnected) {
@@ -407,13 +579,13 @@
     }
   };
 
-  // dd.js
-  var PORTALS2 = new PortalMap();
-  Object.defineProperty(Document.prototype, "portals", { value: PORTALS2 });
-  Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS2 });
-  document.portals.define("i", I);
+  // src/dd.js
   var eventLoopCube2 = window.eventLoopCube = new EventLoopCube2(1e3, 3e3);
   window.EventLoopCube = EventLoopCube2;
-  monkeyPatchAppendElements(eventLoopCube2.connectBranch.bind(eventLoopCube2));
+  monkeyPatchAppendElements((...args) => eventLoopCube2.connectBranch(...args));
+  var PortalMap2 = NativePortalMap(PortalMap);
+  document.portals = new PortalMap2(document);
+  Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
+  document.portals.define("i", I);
   document.readyState !== "loading" ? eventLoopCube2.connectBranch(document.documentElement) : document.addEventListener("DOMContentLoaded", (_) => eventLoopCube2.connectBranch(document.documentElement));
 })();
