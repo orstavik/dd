@@ -19,15 +19,14 @@ const allNames = new Set(["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...
 const isReservedName = name => allNames.has(name) && new TypeError(`Cannot define native event name as portal '${name}'.`);
 const ListenerCache = Object.create(null);
 
-const passiveTrue = /^(wheel|mousewheel|touchstart|touchmove)(?!_prevents)$/;
-function optionsAndPassiveTrue(name) {
-  if (passiveTrue.test(name))
-    return { passive: true };
+const PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)(?!-prevents)$/;
+function domEventOptions(NAME) {
+  if (PASSIVE.test(NAME)) return { passive: true };
 }
 
 const ElementEvent = NAME => Object.freeze({
   onFirstConnect: function () {
-    this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this), optionsAndPassiveTrue(NAME));
+    this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this), domEventOptions(NAME));
   },
   reaction: function () {
     this.ownerElement.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
