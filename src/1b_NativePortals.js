@@ -17,10 +17,17 @@ const DomEvents = new Set(['touchstart', 'touchmove', 'touchend', 'touchcancel',
   'webkitfullscreenchange', 'webkitfullscreenerror']);
 const allNames = new Set(["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...DomEvents]);
 const isReservedName = name => allNames.has(name) && new TypeError(`Cannot define native event name as portal '${name}'.`);
+const ListenerCache = Object.create(null);
+
+const passiveTrue = /^(wheel|mousewheel|touchstart|touchmove)(?!_prevents)$/;
+function optionsAndPassiveTrue(name) {
+  if (passiveTrue.test(name))
+    return { passive: true };
+}
 
 const ElementEvent = NAME => Object.freeze({
   onFirstConnect: function () {
-    this.ownerElement.addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
+    this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this), optionsAndPassiveTrue(NAME));
   },
   reaction: function () {
     this.ownerElement.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
@@ -28,7 +35,7 @@ const ElementEvent = NAME => Object.freeze({
 });
 const DocumentEvent = NAME => Object.freeze({
   onFirstConnect: function () {
-    this.ownerElement.getRootNode().addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
+    this.ownerElement.getRootNode().addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this));
   },
   reaction: function () {
     this.ownerElement.getRootNode().dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
@@ -36,19 +43,19 @@ const DocumentEvent = NAME => Object.freeze({
 });
 const WindowEvent = NAME => Object.freeze({
   onFirstConnect: function () {
-    window.addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
+    window.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this));
   },
   reaction: function () {
     window.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
   }
 });
 
-const cache = {};
-const getNativeEvent = name => {
-  if (name in cache)
-    return cache[name];
-  const portal = name.split(/[._:]/)[0];
-  return cache[name] = cache[portal] ??
+const CACHE = Object.create(null);
+const getNativeEvent = NAME => {
+  if (NAME in CACHE)
+    return CACHE[NAME];
+  const portal = NAME.split(/[._:]/)[0];
+  return CACHE[NAME] = CACHE[portal] ??
     (DomEvents.has(portal) ? ElementEvent(portal) :
       WindowOnlyEvents.has(portal) ? WindowEvent(portal) :
         DocumentOnlyEvents.has(portal) ? DocumentEvent(portal) :

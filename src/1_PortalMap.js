@@ -1,15 +1,3 @@
-//this is the attribute itself for all functions.
-// const PortalDefinition = {
-//   value: function(newValue,oldValue){ ... },
-//   onFirstConnect: function(){...}, //always returns undefined
-//   onMove: function(){...}, //always returns undefined
-//   onReConnect: function() {...}, //always returns undefined
-//   onDisconnect: function(){...}, //always returns undefined
-//   reaction: function(...args){...}, //can return a special thing to end the chain. otherwise whatever.
-//   parseArguments: function(fullName){...}, //returns an array of something or undefined
-//   properties: {dict}, // these properties will be Object.assign() on the node.
-// }
-
 const Resolver = Symbol("Resolver");
 const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
 
