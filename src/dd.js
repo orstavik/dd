@@ -4,14 +4,18 @@ import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I } from "./4_Portals.js";
 
-const PORTALS = new (NativePortalMap(PortalMap))();
-Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
-Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
-document.portals.define("i", I);
-
 const eventLoopCube = window.eventLoopCube = new EventLoopCube(1000, 3000);
 window.EventLoopCube = EventLoopCube;
-monkeyPatchAppendElements(eventLoopCube.connectBranch.bind(eventLoopCube));
+monkeyPatchAppendElements((...args) => eventLoopCube.connectBranch(...args));
+
+const PortalMap2 = NativePortalMap(PortalMap);
+document.portals = new PortalMap2();
+document.portals.setDocument(document);
+Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
+// Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= PortalMap.create(this); } });
+
+document.portals.define("i", I);
+
 document.readyState !== "loading" ?
   eventLoopCube.connectBranch(document.documentElement) :
   document.addEventListener("DOMContentLoaded", _ =>

@@ -1,14 +1,3 @@
-function* walkAttributes(root) {
-  if (root.attributes)
-    yield* Array.from(root.attributes);
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-  for (let n; n = walker.nextNode();) {
-    yield* Array.from(n.attributes);
-    if (n.shadowRoot)
-      yield* walkAttributes(n.shadowRoot);
-  }
-}
-
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -18,6 +7,7 @@ class MicroFrame {
     this.root = at.ownerElement.getRootNode();
     this.event = event;
     this.names = at.name.split(":");
+    this.portalNames = portalNames(at.name);
     this.#inputs = [event];
   }
 
@@ -27,7 +17,7 @@ class MicroFrame {
 
   run() {
     for (let re = this.names[this.#i]; re !== undefined; re = this.names[this.#i]) {
-      const portal = this.root.portals.getReaction(re);
+      const portal = this.root.portals.getReaction(this.portalNames[this.#i]);
       if (portal === null)
         return this.#endError(new Error("portal is null: " + re));
       if (portal instanceof Error)
@@ -65,9 +55,9 @@ class MicroFrame {
 class ConnectFrame {
   #state;
   #value;
-  constructor(at) {
+  constructor(portal, at) {
     this.at = at;
-    this.portal = at.ownerElement.getRootNode().portals.getTrigger(at.name);
+    this.portal = portal;
     this.#init();
     this.disconnect = this.portal.onDisconnect;
   }
@@ -126,6 +116,22 @@ class ConnectFrame {
   }
 }
 
+class ReConnectFrame {
+  constructor(portal, at) {
+    this.portal = portal;
+    this.at = at;
+    this.value = portal.onReConnect.call(at);
+  }
+}
+
+class MoveFrame {
+  constructor(portal, at) {
+    this.portal = portal;
+    this.at = at;
+    this.value = portal.onMove.call(at);
+  }
+}
+
 export class EventLoopCube {
 
   static defaultCleanupFilter = row => {
@@ -147,7 +153,6 @@ export class EventLoopCube {
   #I = 0;
   #J = 0;
   #active = false;
-  #atToConnectFrames = new WeakMap();
 
   get state() { return this.#cube.map(row => row.getState?.() || row.map(mf => mf.getState())); }
 
@@ -159,7 +164,7 @@ export class EventLoopCube {
     for (; this.#I < this.#cube.length; this.#I++) {
       const row = this.#cube[this.#I];
       for (; this.#J < row.length; this.#J++)
-        row[this.#J].run();
+        row[this.#J].run?.();
       this.#J = 0;
     }
     this.#active = false;
@@ -168,13 +173,6 @@ export class EventLoopCube {
 
   dispatch(e, at) { this.#loop([new MicroFrame(e, at)]); }
   dispatchBatch(e, iter) { this.#loop([...iter].map(at => new MicroFrame(e, at))); }
-  connect(at) {
-    if (this.#atToConnectFrames.has(at))
-      return;
-    const frame = new ConnectFrame(at);
-    this.#atToConnectFrames.set(at, frame);
-    this.#loop(frame);
-  }
   disconnect() {
     for (let frame of this.#cube)
       if (frame instanceof ConnectFrame)
@@ -186,8 +184,68 @@ export class EventLoopCube {
     this.#I = keeps.length;
   }
   connectBranch(...els) {
-    for (let el of els)
-      for (const at of walkAttributes(el))
-        this.connect(at);
+    let portalMap;
+    const frames = [];
+    for (let el of els) {
+      portalMap ??= el.ownerDocument.portals;
+      const task = !el[PORTALS] ? doFirstConnect : el.isConnected ? doMove : doReConnect;
+      frames.push(...task(el, portalMap));
+      for (let el2 of el.getElementsByTagName("*"))
+        frames.push(...task(el2, portalMap));
+    }
+    frames.length && this.#loop(frames);
+  }
+  connectPortal(portalName, portal, root) {
+    if (!root[PORTALS]) return; //todo we havn't started yet, so this should not yet run.
+    const frames = [];
+    for (let el2 of root.getElementsByTagName("*"))
+      if (portalName in el2[PORTALS])
+        if (el2[PORTALS][portalName] = true)
+          for (let at of el2.attributes)
+            if (portalNames(at.name)[0] === portalName)
+              frames.push(new ConnectFrame(portal, at));
+    frames.length && this.#loop(frames);
   }
 }
+
+const PORTALS = Symbol("portals");
+const MOVEABLES = Symbol("moveables");
+const RECONNECTABLES = Symbol("reconnectables");
+function* doFirstConnect(el, portalMap) {
+  if (!el.hasAttributes())
+    return;
+  el[PORTALS] = Object.create(null);
+  for (let at of el.attributes) {
+    const portalName = portalNames(at.name)[0];
+    const portal = portalMap.getTrigger(portalName);
+    if (portal?.onConnect) {
+      yield new ConnectFrame(portal, at);
+      el[PORTALS][portalName] = portal;
+      el[MOVEABLES] ||= !!portal.onMove;
+      el[RECONNECTABLES] ||= !!portal.onReconnect;
+    } else
+      el[PORTALS][portalName] = undefined;
+  }
+}
+
+function* doMove(el) {
+  if (el[MOVEABLES])
+    for (let portalName in el[PORTALS])
+      if (el[PORTALS][portalName]?.onMove)
+        for (let at of el.attributes)
+          if (portalNames(at.name)[0] === portalName)
+            yield new MoveFrame(el[PORTALS][portalName], at);
+}
+
+function* doReConnect(el) {
+  if (el[RECONNECTABLES])
+    for (let portalName in el[PORTALS])
+      if (el[PORTALS][portalName]?.onReconnect)
+        for (let at of el.attributes)
+          if (portalNames(at.name)[0] === portalName)
+            yield new ReConnectFrame(el[PORTALS][portalName], at);
+}
+
+const NameCache = Object.create(null);
+const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
+setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
