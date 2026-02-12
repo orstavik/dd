@@ -9,10 +9,9 @@ window.EventLoopCube = EventLoopCube;
 monkeyPatchAppendElements((...args) => eventLoopCube.connectBranch(...args));
 
 const PortalMap2 = NativePortalMap(PortalMap);
-document.portals = new PortalMap2();
-document.portals.setDocument(document);
+document.portals = new PortalMap2(document);
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
-// Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= PortalMap.create(this); } });
+// Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= new PortalMap2(this); } });
 
 document.portals.define("i", I);
 

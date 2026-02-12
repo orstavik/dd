@@ -15,13 +15,26 @@ function checkArrowThis(func) {
     throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
 }
 
+function verifyPortalDefinition(name, Portal) {
+  if (!(Portal instanceof Object))
+    throw new TypeError(`Portal Definition is not an object.`);
+  let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
+  if (!onFirstConnect && !reaction)
+    throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
+  if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
+    throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+  if (onDisconnect && !onReConnect)
+    throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
+  return { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+}
+
 export class PortalMap {
 
   #portals = Object.create(null);
   #portalRequests = Object.create(null);
   #root;
 
-  setDocument(root) { this.#root = root; }
+  constructor(root) { this.#root = root; }
 
   define(name, Portal) {
     if (!name.match(/^[a-z][a-z0-9]*$/))
@@ -35,32 +48,16 @@ export class PortalMap {
     try {
       if (Portal instanceof Promise)
         Portal = await Portal;
-      if (!(Portal instanceof Object))
-        throw new TypeError(`Portal Definition is not an object.`);
-      let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
-      Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
-      if (!onFirstConnect && !reaction)
-        throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
-      if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
-        throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
-      if(onDisconnect && !onReConnect)
-        throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
-      const promises = [onFirstConnect, onDisconnect, reaction].filter(o => o instanceof Promise);
-      if (promises.length)
-        await Promise.all(promises);
-      reaction && checkArrowThis(reaction);
-      onFirstConnect && checkArrowThis(onFirstConnect);
-      onMove && checkArrowThis(onMove);
-      onReConnect && checkArrowThis(onReConnect);
-      onDisconnect && checkArrowThis(onDisconnect);
-      Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction};
+      Portal = verifyPortalDefinition(name, Portal);
+      const promises = Object.values(Portal).filter(o => o instanceof Promise);
+      if (promises.length) await Promise.all(promises);
+      Object.values(Portal).filter(o => typeof o === "function").forEach(checkArrowThis);
+      this.#portals[name] = Portal;
+      window.eventLoopCube.connectPortal(name, Portal, this.#root);
     } catch (err) {
-      Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
-    }
-    this.#portals[name] = Portal;
-    window.eventLoopCube.connectPortal(name, Portal, this.#root);     //TriggerReactionRaceCondition
-    if (this.#portalRequests[name]) {                                 //TriggerReactionRaceCondition
-      this.#portalRequests[name][Resolver](Portal);                   //TriggerReactionRaceCondition
+      this.#portals[name] = new TypeError(`Error defining portal '${name}': ${err.message}`);
+    } finally {
+      this.#portalRequests[name]?.[Resolver](this.#portals[name]);
       delete this.#portalRequests[name];
     }
   }
