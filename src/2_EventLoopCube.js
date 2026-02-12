@@ -66,7 +66,15 @@ class ConnectFrame {
     this.#value = value;
     if (value instanceof Promise) {
       this.#state = "awaiting value";
-      this.#init();
+      (async _ => {
+        try {
+          this.#value = await this.#value;
+          this.#state = "connected";
+        } catch (err) {
+          this.#value = err;
+          this.#state = "error onFirstConnect";
+        }
+      })();
     }
     this.disconnect = this.portal.onDisconnect;
   }
@@ -76,16 +84,6 @@ class ConnectFrame {
       state: this.#state,
       value: this.#value,
     };
-  }
-
-  async #init() {
-    try {
-      this.#value = await this.#value;
-      this.#state = "connected";
-    } catch (err) {
-      this.#value = err;
-      this.#state = "error onFirstConnect";
-    }
   }
 
   async disconnect() {
