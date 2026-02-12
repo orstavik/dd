@@ -58,14 +58,8 @@ const getNativeEvent = name => {
 
 export function NativePortalMap(PortalMap) {
   return class NativePortalMap extends PortalMap {
-    define(name, Portal) {
-      return isReservedName(name) || super.define(name, Portal);
-    }
-    getReaction(name) {
-      return getNativeEvent(name) ?? super.getReaction(name);
-    }
-    getTrigger(name) {
-      return getNativeEvent(name) ?? super.getTrigger(name);
-    }
+    define(name, Portal) { return isReservedName(name) || super.define(name, Portal); }
+    getReaction(name) { return getNativeEvent(name) ?? super.getReaction(name); }
+    get(name) { return getNativeEvent(name) ?? super.get(name); }
   }
 }
