@@ -58,67 +58,39 @@ class MicroFrame {
 }
 
 class ConnectFrame {
-  #state = "connected";
+  #state;
   #value;
-  constructor(portal, at, value) {
+  constructor(type, at, value, portal) {
+    this.type = type;
+    this.#state = type;
     this.at = at;
     this.portal = portal;
     this.#value = value;
-    if (value instanceof Promise) {
-      this.#state = "awaiting value";
-      (async _ => {
-        try {
-          this.#value = await this.#value;
-          this.#state = "connected";
-        } catch (err) {
-          this.#value = err;
-          this.#state = "error onFirstConnect";
-        }
-      })();
+  }
+
+  async update() {
+    this.#state = "awaiting value";
+    try {
+      this.#value = await this.#value;
+      this.#state = this.type;
+    } catch (err) {
+      this.#value = err;
+      this.#state = "error onFirstConnect";
     }
-    this.disconnect = this.portal.onDisconnect;
+  }
+  static make(type, portal, at, value) {
+    const res = new ConnectFrame(type, at, value, portal);
+    if (value instanceof Promise)
+      res.update();
+    return res;
   }
   getState() {
     return {
+      type: this.type,
       at: this.at,
       state: this.#state,
       value: this.#value,
     };
-  }
-
-  async disconnect() {
-    this.#state = "could not disconnect because not properly connected";
-    if (this.#state !== "connected") return;
-    this.#state = "calling disconnect on ConnectFrame that doesn't have onDisconnect.";
-    if (this.portal.onDisconnect == null) return;
-    try {
-      this.#state = "calling onDisconnect";
-      this.#value = this.portal.onDisconnect.call(this.at);
-      if (this.#value instanceof Promise) {
-        this.#state = "awaiting onDisconnect";
-        await this.#value;
-      }
-      this.#state = "disconnected";
-    } catch (err) {
-      this.#value = err;
-      this.#state = "error calling onDisconnect";
-    }
-  }
-}
-
-class ReConnectFrame {
-  constructor(portal, at) {
-    this.portal = portal;
-    this.at = at;
-    this.value = portal.onReConnect.call(at);
-  }
-}
-
-class MoveFrame {
-  constructor(portal, at) {
-    this.portal = portal;
-    this.at = at;
-    this.value = portal.onMove.call(at);
   }
 }
 
@@ -143,6 +115,7 @@ export class EventLoopCube {
   #I = 0;
   #J = 0;
   #active = false;
+  #disconnectables = new Map();
 
   get state() { return this.#cube.map(row => row.getState?.() || row.map(mf => mf.getState())); }
 
@@ -164,9 +137,12 @@ export class EventLoopCube {
   dispatch(e, at) { this.#loop([new MicroFrame(e, at)]); }
   dispatchBatch(e, iter) { this.#loop([...iter].map(at => new MicroFrame(e, at))); }
   disconnect() {
-    for (let frame of this.#cube)
-      if (frame instanceof ConnectFrame)
-        frame.disconnect?.call(frame.at);
+    for (let at of this.#disconnectables.keys())
+      if (!at.ownerElement.isConnected) {
+        const portal = this.#disconnectables.get(at);
+        ConnectFrame.make("onDisconnect", portal, at, portal.onDisconnect?.call(at));
+        this.#disconnectables.delete(at);
+      }
   }
   async cleanup(filter = EventLoopCube.defaultCleanupFilter) {
     const keeps = this.#cube.slice(0, this.#I).filter(filter);
@@ -189,28 +165,34 @@ export class EventLoopCube {
             el[PORTALS][portalName] ??= undefined;
             if (portal?.onFirstConnect) {
               const res = portal.onFirstConnect.call(at);
+              const frame = ConnectFrame.make("onFirstConnect", portal, at, res);
               if (res !== EventLoopCube.Break) {
-                frames.push(new ConnectFrame(portal, at, res));
+                frames.push(frame);
                 el[PORTALS][portalName] = portal;
                 el[MOVEABLES] ||= !!portal.onMove;
                 el[RECONNECTABLES] ||= !!portal.onReconnect;
+                portal.onDisconnect && this.#disconnectables.set(at, portal);
               }
             }
           }
         } else if (task === "doMove") {
           if (el[MOVEABLES])
-            for (let portalName in el[PORTALS])
-              if (el[PORTALS][portalName]?.onMove)
+            for (let portalName in el[PORTALS]) {
+              const portal = el[PORTALS][portalName];
+              if (portal?.onMove)
                 for (let at of el.attributes)
                   if (portalNames(at.name)[0] === portalName)
-                    frames.push(new MoveFrame(el[PORTALS][portalName], at));
+                    frames.push(ConnectFrame.make("onMove", portal, at, portal.onMove.call(at)));
+            }
         } else if (task === "doReConnect") {
           if (el[RECONNECTABLES])
-            for (let portalName in el[PORTALS])
-              if (el[PORTALS][portalName]?.onReconnect)
+            for (let portalName in el[PORTALS]) {
+              const portal = el[PORTALS][portalName];
+              if (portal?.onReconnect)
                 for (let at of el.attributes)
                   if (portalNames(at.name)[0] === portalName)
-                    frames.push(new ReConnectFrame(el[PORTALS][portalName], at));
+                    frames.push(ConnectFrame.make("onReConnect", portal, at, portal.onReconnect.call(at)));
+            }
         }
       }
     }

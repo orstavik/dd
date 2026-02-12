@@ -43,6 +43,8 @@ export class PortalMap {
         throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
       if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
         throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+      if(onDisconnect && !onReConnect)
+        throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
       const promises = [onFirstConnect, onDisconnect, reaction].filter(o => o instanceof Promise);
       if (promises.length)
         await Promise.all(promises);
