@@ -53,11 +53,14 @@ const Intersection = {
 const I = {
   onFirstConnect: function () { eventLoopCube.dispatch(null, this); },
 }
-const hrefClick = function (e) { !e.defaultPrevented && Object.defineProperty(e, "defaultPrevented", { value: this }); };
+
+function hrefClick(e) {
+  e.defaultPrevented || Object.defineProperty(e, "defaultPrevented", { value: this.getAttributeNode("href") });
+};
 const Href = {
   onFirstConnect() {
     return (this.ownerElement.tagName === "A" || this.ownerElement.tagName === "AREA") ?
-      this.addEventListener("click", hrefClick) :
+      this.ownerElement.addEventListener("click", hrefClick) :
       EventLoopCube.Break;
   }
 }
