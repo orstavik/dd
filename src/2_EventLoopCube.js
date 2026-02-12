@@ -1,5 +1,5 @@
 //todo this we need to put into the PortalMap?? Or should it be in the eventLoopCube??
-const NameCache = Object.create(null);
+let NameCache = Object.create(null);
 const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
 setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
 
@@ -58,12 +58,16 @@ class MicroFrame {
 }
 
 class ConnectFrame {
-  #state;
+  #state = "connected";
   #value;
-  constructor(portal, at) {
+  constructor(portal, at, value) {
     this.at = at;
     this.portal = portal;
-    this.#init();
+    this.#value = value;
+    if (value instanceof Promise) {
+      this.#state = "awaiting value";
+      this.#init();
+    }
     this.disconnect = this.portal.onDisconnect;
   }
   getState() {
@@ -75,29 +79,12 @@ class ConnectFrame {
   }
 
   async #init() {
-    this.#state = "awaiting portal";
-    this.portal = await this.portal;
-    this.#state = "at disconnected while awaiting portal";
-    if (!this.at.ownerElement.isConnected) return;
-    this.#state = "portal null";
-    if (this.portal === null) return;
-    this.#state = "onFirstConnect null";
-    if (this.portal.onFirstConnect == null) return;
-    this.#state = "portal definition error";
-    if (this.portal instanceof Error) return this.#value = this.portal;
-    this.#state = "setting properties and calling onFirstConnect";
     try {
-      if (this.portal.properties)
-        Object.defineProperties(this.at, this.portal.properties);
-      this.#value = this.portal.onFirstConnect.call(this.at);
-      if (this.#value instanceof Promise) {
-        this.#state = "awaiting onFirstConnect";
-        await this.#value;
-      }
+      this.#value = await this.#value;
       this.#state = "connected";
     } catch (err) {
       this.#value = err;
-      this.#state = "error calling onFirstConnect or setting properties";
+      this.#state = "error onFirstConnect";
     }
   }
 
@@ -191,10 +178,11 @@ export class EventLoopCube {
   connectBranch(...els) {
     const portalMap = els[0]?.ownerDocument.portals;
     const frames = [];
-    for (let el of els) {
-      const task = !el[PORTALS] ? doFirstConnect : el.isConnected ? doMove : doReConnect;
-      for (let el2 = el, subs = el.getElementsByTagName("*"), i = 0; el2; el2 = subs[i++])
-        frames.push(...task(el2, portalMap));
+    for (let top of els) {
+      const task = !top[PORTALS] ? doFirstConnect : top.isConnected ? doMove : doReConnect;
+      for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
+        frames.push(...task(el, portalMap));
+      }
     }
     frames.length && this.#loop(frames);
   }
@@ -221,13 +209,16 @@ function* doFirstConnect(el, portalMap) {
   for (let at of el.attributes) {
     const portalName = portalNames(at.name)[0];
     const portal = portalMap.get(portalName);
+    el[PORTALS][portalName] ??= undefined;
     if (portal?.onFirstConnect) {
-      yield new ConnectFrame(portal, at);
-      el[PORTALS][portalName] = portal;
-      el[MOVEABLES] ||= !!portal.onMove;
-      el[RECONNECTABLES] ||= !!portal.onReconnect;
-    } else
-      el[PORTALS][portalName] = undefined;
+      const res = portal.onFirstConnect.call(at);
+      if (res !== EventLoopCube.Break) {
+        yield new ConnectFrame(portal, at, res);
+        el[PORTALS][portalName] = portal;
+        el[MOVEABLES] ||= !!portal.onMove;
+        el[RECONNECTABLES] ||= !!portal.onReconnect;
+      }
+    }
   }
 }
 

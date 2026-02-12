@@ -22,8 +22,6 @@
       reaction: _ => "a reaction",
       onFirstConnect: function () { return "onFirstConnect " + JSON.stringify(this); },
       onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
-      value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
-      parseArguments: fullName => fullName.split(/[_.]/).slice(1),
     });
     //2. one reaction
     const one = PORTALS.get("one");
@@ -42,8 +40,6 @@
       reaction: _ => "a reaction",
       onFirstConnect: function () { return "onFirstConnect " + JSON.stringify(this); },
       onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
-      value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
-      parseArguments: fullName => fullName.split(/[_.]/).slice(1),
     });
 
     const { reaction, onFirstConnect } = await one;
@@ -61,8 +57,6 @@
         reaction: _ => "a reaction",
         onFirstConnect: function () { return "onFirstConnect " + JSON.stringify(this); },
         onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
-        value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
-        parseArguments: fullName => fullName.split(/[_.]/).slice(1),
       });
     });
     const { reaction, onFirstConnect } = await one;
@@ -80,8 +74,6 @@
         reaction: waitForIt(1000, _ => _ => "a reaction"),
         onFirstConnect: function () { return "onFirstConnect " + JSON.stringify(this); },
         onDisconnect: function () { return "onDisconnect " + JSON.stringify(this); },
-        value: function (newValue, oldValue) { return ["value ", newValue, oldValue]; },
-        parseArguments: fullName => fullName.split(/[_.]/).slice(1),
       });
     });
     const { reaction, onFirstConnect } = await one;

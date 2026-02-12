@@ -4,85 +4,73 @@
   var PromiseResolver = (r) => Object.assign(new Promise((f) => r = f), { [Resolver]: r });
   function checkArrowThis(func) {
     if (!(typeof func === "function"))
-      return new ReferenceError(`.reaction is not a function: '${func}'`);
+      throw new ReferenceError(`.reaction is not a function: '${func}'`);
     let txt = func.toString();
     if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))
-      return func;
+      return;
     txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "");
     txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, "");
     txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, "");
     if (/\bthis\b/.test(txt))
-      return new SyntaxError(`Arrow function reaction contains "this": ${func}`);
-    return func;
+      throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
   }
   var PortalMap = class {
-    #portals = {};
-    #requested = {};
+    #portals = /* @__PURE__ */ Object.create(null);
+    #portalRequests = /* @__PURE__ */ Object.create(null);
+    #root;
+    setDocument(root) {
+      this.#root = root;
+    }
     define(name, Portal) {
       if (!name.match(/^[a-z][a-z0-9]*$/))
         throw new SyntaxError(`Illegal portal name: '${name}'.`);
-      if (name in this.#portals)
+      if (name in this.#portals && !this.#portals[name][Resolver])
         throw new ReferenceError(`Trying to define portal twice: ${name}.`);
       this.#definePortal(name, Portal);
     }
-    #definePortal(name, Portal) {
-      this.#portals[name] = Portal;
-      if (Portal instanceof Promise)
-        return Portal.catch((err) => err).then((Def) => this.#definePortal(name, Def));
-      if (!(Portal instanceof Object))
-        throw new TypeError(`Portal '${name}' must be an object.`);
-      let { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
-      Portal = { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value };
-      if (!onFirstConnect && !reaction)
-        throw new TypeError(`Portal '${name}' must have either a .onFirstConnect or .reaction property.`);
-      if (!onFirstConnect && (properties || value))
-        throw new TypeError(`Portal '${name}' must have .onFirstConnect if it defines .properties or .value.`);
-      const promises = [onFirstConnect, onDisconnect, reaction, parseArguments, properties, value].filter((o) => o instanceof Promise);
-      if (promises.length)
-        return this.#portals[name] = Promise.all(promises).catch((err) => err).then((_) => this.#definePortal(name, Portal));
-      reaction = reaction && checkArrowThis(reaction);
-      onFirstConnect = onFirstConnect && checkArrowThis(onFirstConnect);
-      onDisconnect = onDisconnect && checkArrowThis(onDisconnect);
-      parseArguments = parseArguments && checkArrowThis(parseArguments);
-      value = value && checkArrowThis(value);
-      for (let prop in Portal)
-        if (Portal[prop] instanceof Error)
-          this.#portals[name] = new ReferenceError(`Portal ${name} .${prop} failed to produce`, Portal[prop]);
-      if (value) {
-        properties ??= {};
-        const OG = Object.getOwnPropertyDescriptor(Attr.prototype, "value");
-        const OGset = OG.set;
-        const set = function (str) {
-          const oldValue = this.value;
-          OGset.call(this, str);
-          value.call(this, str, oldValue);
-        };
-        properties.value = { ...OG, set };
+    async #definePortal(name, Portal) {
+      try {
+        if (Portal instanceof Promise)
+          Portal = await Portal;
+        if (!(Portal instanceof Object))
+          throw new TypeError(`Portal Definition is not an object.`);
+        let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
+        Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+        if (!onFirstConnect && !reaction)
+          throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
+        if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
+          throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+        const promises = [onFirstConnect, onDisconnect, reaction].filter((o) => o instanceof Promise);
+        if (promises.length)
+          await Promise.all(promises);
+        reaction && checkArrowThis(reaction);
+        onFirstConnect && checkArrowThis(onFirstConnect);
+        onMove && checkArrowThis(onMove);
+        onReConnect && checkArrowThis(onReConnect);
+        onDisconnect && checkArrowThis(onDisconnect);
+        Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+      } catch (err) {
+        Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
       }
-      this.#portals[name] = { name, onFirstConnect, onDisconnect, reaction, parseArguments, properties };
-      if (name in this.#requested) {
-        this.#requested[name][Resolver](this.#portals[name]);
-        delete this.#requested[name];
+      this.#portals[name] = Portal;
+      window.eventLoopCube.connectPortal(name, Portal, this.#root);
+      if (this.#portalRequests[name]) {
+        this.#portalRequests[name][Resolver](Portal);
+        delete this.#portalRequests[name];
       }
     }
-    portalNameCache = {};
-    get(fullName) {
-      const name = this.portalNameCache[fullName] ??= fullName.split(/[._:]/)[0];
-      return this.#portals[name] ?? (this.#requested[name] ??= PromiseResolver());
+    get(portalName) {
+      return this.#portals[portalName];
+    }
+    getReaction(portalName) {
+      return this.#portals[portalName] ?? (this.#portalRequests[portalName] ??= PromiseResolver());
     }
   };
 
   // src/2_EventLoopCube.js
-  function* walkAttributes(root) {
-    if (root.attributes)
-      yield* Array.from(root.attributes);
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-    for (let n; n = walker.nextNode();) {
-      yield* Array.from(n.attributes);
-      if (n.shadowRoot)
-        yield* walkAttributes(n.shadowRoot);
-    }
-  }
+  var NameCache = /* @__PURE__ */ Object.create(null);
+  var portalNames = (attrName) => NameCache[attrName] ??= attrName.split(":").map((n) => n.split(/[._]/)[0]);
+  setInterval((_) => Object.keys(NameCache).length > 5e3 && (NameCache = /* @__PURE__ */ Object.create(null)), 5e3);
   var MicroFrame = class {
     #i = 1;
     #inputs;
@@ -91,6 +79,7 @@
       this.root = at.ownerElement.getRootNode();
       this.event = event;
       this.names = at.name.split(":");
+      this.portalNames = portalNames(at.name);
       this.#inputs = [event];
     }
     getState() {
@@ -98,7 +87,7 @@
     }
     run() {
       for (let re = this.names[this.#i]; re !== void 0; re = this.names[this.#i]) {
-        const portal = this.root.portals.get(re);
+        const portal = this.root.portals.getReaction(this.portalNames[this.#i]);
         if (portal === null)
           return this.#endError(new Error("portal is null: " + re));
         if (portal instanceof Error)
@@ -129,12 +118,16 @@
     }
   };
   var ConnectFrame = class {
-    #state;
+    #state = "connected";
     #value;
-    constructor(at) {
+    constructor(portal, at, value) {
       this.at = at;
-      this.portal = at.ownerElement.getRootNode().portals.get(at.name);
-      this.#init();
+      this.portal = portal;
+      this.#value = value;
+      if (value instanceof Promise) {
+        this.#state = "awaiting value";
+        this.#init();
+      }
       this.disconnect = this.portal.onDisconnect;
     }
     getState() {
@@ -145,29 +138,12 @@
       };
     }
     async #init() {
-      this.#state = "awaiting portal";
-      this.portal = await this.portal;
-      this.#state = "at disconnected while awaiting portal";
-      if (!this.at.ownerElement.isConnected) return;
-      this.#state = "portal null";
-      if (this.portal === null) return;
-      this.#state = "onFirstConnect null";
-      if (this.portal.onFirstConnect == null) return;
-      this.#state = "portal definition error";
-      if (this.portal instanceof Error) return this.#value = this.portal;
-      this.#state = "setting properties and calling onFirstConnect";
       try {
-        if (this.portal.properties)
-          Object.defineProperties(this.at, this.portal.properties);
-        this.#value = this.portal.onFirstConnect.call(this.at);
-        if (this.#value instanceof Promise) {
-          this.#state = "awaiting onFirstConnect";
-          await this.#value;
-        }
+        this.#value = await this.#value;
         this.#state = "connected";
       } catch (err) {
         this.#value = err;
-        this.#state = "error calling onFirstConnect or setting properties";
+        this.#state = "error onFirstConnect";
       }
     }
     async disconnect() {
@@ -189,20 +165,32 @@
       }
     }
   };
+  var ReConnectFrame = class {
+    constructor(portal, at) {
+      this.portal = portal;
+      this.at = at;
+      this.value = portal.onReConnect.call(at);
+    }
+  };
+  var MoveFrame = class {
+    constructor(portal, at) {
+      this.portal = portal;
+      this.at = at;
+      this.value = portal.onMove.call(at);
+    }
+  };
   var EventLoopCube2 = class _EventLoopCube {
     static defaultCleanupFilter = (row) => {
     };
     constructor(disconnectInterval = 1e3, cleanupInterval = 3e3) {
       setInterval((_) => this.disconnect(), disconnectInterval);
-      setInterval((_) => this.cleanup(), cleanupInterval);
     }
     static Break = Symbol("Break");
     #cube = [];
-    //[...events : [...microFrames]]
+    //[...events : [...microFrames]]  //todo in a more efficient world, this would be a single flat array.
     #I = 0;
     #J = 0;
     #active = false;
-    #atToConnectFrames = /* @__PURE__ */ new WeakMap();
     get state() {
       return this.#cube.map((row) => row.getState?.() || row.map((mf) => mf.getState()));
     }
@@ -214,7 +202,7 @@
       for (; this.#I < this.#cube.length; this.#I++) {
         const row = this.#cube[this.#I];
         for (; this.#J < row.length; this.#J++)
-          row[this.#J].run();
+          row[this.#J].run?.();
         this.#J = 0;
       }
       this.#active = false;
@@ -226,13 +214,6 @@
     dispatchBatch(e, iter) {
       this.#loop([...iter].map((at) => new MicroFrame(e, at)));
     }
-    connect(at) {
-      if (this.#atToConnectFrames.has(at))
-        return;
-      const frame = new ConnectFrame(at);
-      this.#atToConnectFrames.set(at, frame);
-      this.#cube.push(frame);
-    }
     disconnect() {
       for (let frame of this.#cube)
         if (frame instanceof ConnectFrame)
@@ -240,15 +221,76 @@
     }
     async cleanup(filter = _EventLoopCube.defaultCleanupFilter) {
       const keeps = this.#cube.slice(0, this.#I).filter(filter);
-      this.#cube = [...keeps, this.#cube[this.#I]];
+      this.#cube = [...keeps, ...this.#cube.slice(this.#I)];
       this.#I = keeps.length;
     }
     connectBranch(...els) {
-      for (let el of els)
-        for (const at of walkAttributes(el))
-          this.connect(at);
+      const portalMap = els[0]?.ownerDocument.portals;
+      const frames = [];
+      for (let top of els) {
+        const task = !top[PORTALS] ? doFirstConnect : top.isConnected ? doMove : doReConnect;
+        for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
+          frames.push(...task(el, portalMap));
+        }
+      }
+      frames.length && this.#loop(frames);
+    }
+    connectPortal(portalName, portal, root) {
+      if (!root[PORTALS]) return;
+      const frames = [];
+      for (let el2 of root.getElementsByTagName("*"))
+        if (portalName in el2[PORTALS]) {
+          if (el2[PORTALS][portalName] = true) {
+            for (let at of el2.attributes)
+              if (portalNames(at.name)[0] === portalName)
+                frames.push(new ConnectFrame(portal, at));
+          }
+        }
+      frames.length && this.#loop(frames);
     }
   };
+  var PORTALS = Symbol("portals");
+  var MOVEABLES = Symbol("moveables");
+  var RECONNECTABLES = Symbol("reconnectables");
+  function* doFirstConnect(el, portalMap) {
+    if (!el.hasAttributes())
+      return;
+    el[PORTALS] = /* @__PURE__ */ Object.create(null);
+    for (let at of el.attributes) {
+      const portalName = portalNames(at.name)[0];
+      const portal = portalMap.get(portalName);
+      el[PORTALS][portalName] ??= void 0;
+      if (portal?.onFirstConnect) {
+        const res = portal.onFirstConnect.call(at);
+        if (res !== EventLoopCube2.Break) {
+          yield new ConnectFrame(portal, at, res);
+          el[PORTALS][portalName] = portal;
+          el[MOVEABLES] ||= !!portal.onMove;
+          el[RECONNECTABLES] ||= !!portal.onReconnect;
+        }
+      }
+    }
+  }
+  function* doMove(el) {
+    if (el[MOVEABLES]) {
+      for (let portalName in el[PORTALS])
+        if (el[PORTALS][portalName]?.onMove) {
+          for (let at of el.attributes)
+            if (portalNames(at.name)[0] === portalName)
+              yield new MoveFrame(el[PORTALS][portalName], at);
+        }
+    }
+  }
+  function* doReConnect(el) {
+    if (el[RECONNECTABLES]) {
+      for (let portalName in el[PORTALS])
+        if (el[PORTALS][portalName]?.onReconnect) {
+          for (let at of el.attributes)
+            if (portalNames(at.name)[0] === portalName)
+              yield new ReConnectFrame(el[PORTALS][portalName], at);
+        }
+    }
+  }
 
   // src/3_monkeyPatchAppendElements.js
   function monkeyPatchAppendElements(onNodesConnected) {
@@ -345,7 +387,7 @@
       [Element.prototype, "outerHTML", outerHTMLsetter]
     ];
     for (const [obj, prop, monkey] of map) {
-      let monkey2 = function (...args) {
+      let monkey2 = function(...args) {
         return monkey.call(this, og, ...args);
       };
       const d = Object.getOwnPropertyDescriptor(obj, prop);
@@ -359,12 +401,16 @@
   }
 
   // src/4_Portals.js
-  var I = { onFirstConnect: function () { eventLoopCube.dispatch(null, this); } };
+  var I = {
+    onFirstConnect: function() {
+      eventLoopCube.dispatch(null, this);
+    }
+  };
 
   // dd.js
-  var PORTALS = new PortalMap();
-  Object.defineProperty(Document.prototype, "portals", { value: PORTALS });
-  Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS });
+  var PORTALS2 = new PortalMap();
+  Object.defineProperty(Document.prototype, "portals", { value: PORTALS2 });
+  Object.defineProperty(ShadowRoot.prototype, "portals", { value: PORTALS2 });
   document.portals.define("i", I);
   var eventLoopCube2 = window.eventLoopCube = new EventLoopCube2(1e3, 3e3);
   window.EventLoopCube = EventLoopCube2;

@@ -37,13 +37,13 @@ export class PortalMap {
         Portal = await Portal;
       if (!(Portal instanceof Object))
         throw new TypeError(`Portal Definition is not an object.`);
-      let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction, parseArguments, properties, value } = Portal;
-      Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction, parseArguments, properties, value };
+      let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
+      Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
       if (!onFirstConnect && !reaction)
         throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
-      if (!onFirstConnect && (properties || value || onDisconnect || onReConnect || onMove))
-        throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, .properties, .value, or .onDisconnect.`);
-      const promises = [onFirstConnect, onDisconnect, reaction, parseArguments, properties, value].filter(o => o instanceof Promise);
+      if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
+        throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+      const promises = [onFirstConnect, onDisconnect, reaction].filter(o => o instanceof Promise);
       if (promises.length)
         await Promise.all(promises);
       reaction && checkArrowThis(reaction);
@@ -51,20 +51,7 @@ export class PortalMap {
       onMove && checkArrowThis(onMove);
       onReConnect && checkArrowThis(onReConnect);
       onDisconnect && checkArrowThis(onDisconnect);
-      parseArguments && checkArrowThis(parseArguments);
-      value && checkArrowThis(value);
-      if (value) {
-        properties ??= {};
-        const OG = Object.getOwnPropertyDescriptor(Attr.prototype, "value");
-        const OGset = OG.set;
-        const set = function (str) {
-          const oldValue = this.value;
-          OGset.call(this, str);
-          value.call(this, str, oldValue);
-        };
-        properties.value = { ...OG, set };
-      }
-      Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction, parseArguments, properties };
+      Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction};
     } catch (err) {
       Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
     }
