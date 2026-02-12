@@ -179,13 +179,46 @@ export class EventLoopCube {
     const portalMap = els[0]?.ownerDocument.portals;
     const frames = [];
     for (let top of els) {
-      const task = !top[PORTALS] ? doFirstConnect : top.isConnected ? doMove : doReConnect;
+      const task = !top[PORTALS] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
       for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
-        frames.push(...task(el, portalMap));
+        if (task === "doFirstConnect") {
+          if (!el.hasAttributes())
+            continue;
+          el[PORTALS] = Object.create(null);
+          for (let at of el.attributes) {
+            const portalName = portalNames(at.name)[0];
+            const portal = portalMap.get(portalName);
+            el[PORTALS][portalName] ??= undefined;
+            if (portal?.onFirstConnect) {
+              const res = portal.onFirstConnect.call(at);
+              if (res !== EventLoopCube.Break) {
+                frames.push(new ConnectFrame(portal, at, res));
+                el[PORTALS][portalName] = portal;
+                el[MOVEABLES] ||= !!portal.onMove;
+                el[RECONNECTABLES] ||= !!portal.onReconnect;
+              }
+            }
+          }
+        } else if (task === "doMove") {
+          if (el[MOVEABLES])
+            for (let portalName in el[PORTALS])
+              if (el[PORTALS][portalName]?.onMove)
+                for (let at of el.attributes)
+                  if (portalNames(at.name)[0] === portalName)
+                    frames.push(new MoveFrame(el[PORTALS][portalName], at));
+        } else if (task === "doReConnect") {
+          if (el[RECONNECTABLES])
+            for (let portalName in el[PORTALS])
+              if (el[PORTALS][portalName]?.onReconnect)
+                for (let at of el.attributes)
+                  if (portalNames(at.name)[0] === portalName)
+                    frames.push(new ReConnectFrame(el[PORTALS][portalName], at));
+        }
       }
     }
     frames.length && this.#loop(frames);
   }
+  //todo the eventLoop should have a root! That is the problem.. I think this is a better fix!
   connectPortal(portalName, portal, root) {
     if (!root[PORTALS]) return; //todo we havn't started yet, so this should not yet run.
     const frames = [];
@@ -202,40 +235,3 @@ export class EventLoopCube {
 const PORTALS = Symbol("portals");
 const MOVEABLES = Symbol("moveables");
 const RECONNECTABLES = Symbol("reconnectables");
-function* doFirstConnect(el, portalMap) {
-  if (!el.hasAttributes())
-    return;
-  el[PORTALS] = Object.create(null);
-  for (let at of el.attributes) {
-    const portalName = portalNames(at.name)[0];
-    const portal = portalMap.get(portalName);
-    el[PORTALS][portalName] ??= undefined;
-    if (portal?.onFirstConnect) {
-      const res = portal.onFirstConnect.call(at);
-      if (res !== EventLoopCube.Break) {
-        yield new ConnectFrame(portal, at, res);
-        el[PORTALS][portalName] = portal;
-        el[MOVEABLES] ||= !!portal.onMove;
-        el[RECONNECTABLES] ||= !!portal.onReconnect;
-      }
-    }
-  }
-}
-
-function* doMove(el) {
-  if (el[MOVEABLES])
-    for (let portalName in el[PORTALS])
-      if (el[PORTALS][portalName]?.onMove)
-        for (let at of el.attributes)
-          if (portalNames(at.name)[0] === portalName)
-            yield new MoveFrame(el[PORTALS][portalName], at);
-}
-
-function* doReConnect(el) {
-  if (el[RECONNECTABLES])
-    for (let portalName in el[PORTALS])
-      if (el[PORTALS][portalName]?.onReconnect)
-        for (let at of el.attributes)
-          if (portalNames(at.name)[0] === portalName)
-            yield new ReConnectFrame(el[PORTALS][portalName], at);
-}

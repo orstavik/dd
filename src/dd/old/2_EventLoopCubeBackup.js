@@ -197,3 +197,43 @@ export class EventLoopCube {
 // But the message structure in portals are reaction => triggers (not the other way round),
 // so we want the triggers to be set up first and then the reactions for the same portals triggered afterwards.
 // Therefore we explicitly put the reaction portal awaits at the end of the microTask queue when the portal first resolves.
+
+
+
+// function* doFirstConnect(el, portalMap) {
+//   if (!el.hasAttributes())
+//     return;
+//   el[PORTALS] = Object.create(null);
+//   for (let at of el.attributes) {
+//     const portalName = portalNames(at.name)[0];
+//     const portal = portalMap.get(portalName);
+//     el[PORTALS][portalName] ??= undefined;
+//     if (portal?.onFirstConnect) {
+//       const res = portal.onFirstConnect.call(at);
+//       if (res !== EventLoopCube.Break) {
+//         yield new ConnectFrame(portal, at, res);
+//         el[PORTALS][portalName] = portal;
+//         el[MOVEABLES] ||= !!portal.onMove;
+//         el[RECONNECTABLES] ||= !!portal.onReconnect;
+//       }
+//     }
+//   }
+// }
+
+// function* doMove(el) {
+//   if (el[MOVEABLES])
+//     for (let portalName in el[PORTALS])
+//       if (el[PORTALS][portalName]?.onMove)
+//         for (let at of el.attributes)
+//           if (portalNames(at.name)[0] === portalName)
+//             yield new MoveFrame(el[PORTALS][portalName], at);
+// }
+
+// function* doReConnect(el) {
+//   if (el[RECONNECTABLES])
+//     for (let portalName in el[PORTALS])
+//       if (el[PORTALS][portalName]?.onReconnect)
+//         for (let at of el.attributes)
+//           if (portalNames(at.name)[0] === portalName)
+//             yield new ReConnectFrame(el[PORTALS][portalName], at);
+// }
