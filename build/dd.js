@@ -31,17 +31,17 @@
         return Portal.catch((err) => err).then((Def) => this.#definePortal(name, Def));
       if (!(Portal instanceof Object))
         throw new TypeError(`Portal '${name}' must be an object.`);
-      let { onConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
-      Portal = { onConnect, onDisconnect, reaction, parseArguments, properties, value };
-      if (!onConnect && !reaction)
-        throw new TypeError(`Portal '${name}' must have either a .onConnect or .reaction property.`);
-      if (!onConnect && (properties || value))
-        throw new TypeError(`Portal '${name}' must have .onConnect if it defines .properties or .value.`);
-      const promises = [onConnect, onDisconnect, reaction, parseArguments, properties, value].filter((o) => o instanceof Promise);
+      let { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
+      Portal = { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value };
+      if (!onFirstConnect && !reaction)
+        throw new TypeError(`Portal '${name}' must have either a .onFirstConnect or .reaction property.`);
+      if (!onFirstConnect && (properties || value))
+        throw new TypeError(`Portal '${name}' must have .onFirstConnect if it defines .properties or .value.`);
+      const promises = [onFirstConnect, onDisconnect, reaction, parseArguments, properties, value].filter((o) => o instanceof Promise);
       if (promises.length)
         return this.#portals[name] = Promise.all(promises).catch((err) => err).then((_) => this.#definePortal(name, Portal));
       reaction = reaction && checkArrowThis(reaction);
-      onConnect = onConnect && checkArrowThis(onConnect);
+      onFirstConnect = onFirstConnect && checkArrowThis(onFirstConnect);
       onDisconnect = onDisconnect && checkArrowThis(onDisconnect);
       parseArguments = parseArguments && checkArrowThis(parseArguments);
       value = value && checkArrowThis(value);
@@ -52,14 +52,14 @@
         properties ??= {};
         const OG = Object.getOwnPropertyDescriptor(Attr.prototype, "value");
         const OGset = OG.set;
-        const set = function(str) {
+        const set = function (str) {
           const oldValue = this.value;
           OGset.call(this, str);
           value.call(this, str, oldValue);
         };
         properties.value = { ...OG, set };
       }
-      this.#portals[name] = { name, onConnect, onDisconnect, reaction, parseArguments, properties };
+      this.#portals[name] = { name, onFirstConnect, onDisconnect, reaction, parseArguments, properties };
       if (name in this.#requested) {
         this.#requested[name][Resolver](this.#portals[name]);
         delete this.#requested[name];
@@ -77,7 +77,7 @@
     if (root.attributes)
       yield* Array.from(root.attributes);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-    for (let n; n = walker.nextNode(); ) {
+    for (let n; n = walker.nextNode();) {
       yield* Array.from(n.attributes);
       if (n.shadowRoot)
         yield* walkAttributes(n.shadowRoot);
@@ -151,23 +151,23 @@
       if (!this.at.ownerElement.isConnected) return;
       this.#state = "portal null";
       if (this.portal === null) return;
-      this.#state = "onConnect null";
-      if (this.portal.onConnect == null) return;
+      this.#state = "onFirstConnect null";
+      if (this.portal.onFirstConnect == null) return;
       this.#state = "portal definition error";
       if (this.portal instanceof Error) return this.#value = this.portal;
-      this.#state = "setting properties and calling onConnect";
+      this.#state = "setting properties and calling onFirstConnect";
       try {
         if (this.portal.properties)
           Object.defineProperties(this.at, this.portal.properties);
-        this.#value = this.portal.onConnect.call(this.at);
+        this.#value = this.portal.onFirstConnect.call(this.at);
         if (this.#value instanceof Promise) {
-          this.#state = "awaiting onConnect";
+          this.#state = "awaiting onFirstConnect";
           await this.#value;
         }
         this.#state = "connected";
       } catch (err) {
         this.#value = err;
-        this.#state = "error calling onConnect or setting properties";
+        this.#state = "error calling onFirstConnect or setting properties";
       }
     }
     async disconnect() {
@@ -345,7 +345,7 @@
       [Element.prototype, "outerHTML", outerHTMLsetter]
     ];
     for (const [obj, prop, monkey] of map) {
-      let monkey2 = function(...args) {
+      let monkey2 = function (...args) {
         return monkey.call(this, og, ...args);
       };
       const d = Object.getOwnPropertyDescriptor(obj, prop);
@@ -359,11 +359,7 @@
   }
 
   // src/4_Portals.js
-  var I = {
-    onConnect: function() {
-      eventLoopCube.dispatch(null, this);
-    }
-  };
+  var I = { onFirstConnect: function () { eventLoopCube.dispatch(null, this); } };
 
   // dd.js
   var PORTALS = new PortalMap();

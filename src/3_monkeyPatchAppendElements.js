@@ -1,3 +1,4 @@
+//todo we need to add the different variants of setAttribute monkeypatches as well.
 export function monkeyPatchAppendElements(onNodesConnected) {
 
   function insertArgs(og, ...args) {

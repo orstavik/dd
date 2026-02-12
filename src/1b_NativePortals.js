@@ -19,7 +19,7 @@ const allNames = new Set(["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...
 const isReservedName = name => allNames.has(name) && new TypeError(`Cannot define native event name as portal '${name}'.`);
 
 const ElementEvent = NAME => Object.freeze({
-  onConnect: function () {
+  onFirstConnect: function () {
     this.ownerElement.addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
   },
   reaction: function () {
@@ -27,7 +27,7 @@ const ElementEvent = NAME => Object.freeze({
   }
 });
 const DocumentEvent = NAME => Object.freeze({
-  onConnect: function () {
+  onFirstConnect: function () {
     this.ownerElement.getRootNode().addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
   },
   reaction: function () {
@@ -35,7 +35,7 @@ const DocumentEvent = NAME => Object.freeze({
   }
 });
 const WindowEvent = NAME => Object.freeze({
-  onConnect: function () {
+  onFirstConnect: function () {
     window.addEventListener(NAME, e => eventLoopCube.dispatch(e, this));
   },
   reaction: function () {

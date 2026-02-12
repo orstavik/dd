@@ -1,5 +1,5 @@
 const Attr = {
-  onConnect() {
+  onFirstConnect() {
     const varName = this.name.split("_")[1];
     const action = !varName ?
       ([mr]) => EventLoopCube.dispatch(mr) :
@@ -20,7 +20,7 @@ const Attr = {
  * documents.Triggers.define("device-pixel-content-box", AttrResize);
  */
 const Resize = {
-  onConnect() {
+  onFirstConnect() {
     const box = ["content-box", "border-box", "device-pixel-content-box"].includes(this.name) ? this.name : "content-box";
     this._observer = new ResizeObserver(([mr]) => eventLoop.dispatch(mr, this));
     this._observer.observe(this.ownerElement, { box });
@@ -33,7 +33,7 @@ const Resize = {
  * All other IntersectionObserver triggers should use AttrIntersection.
  */
 const Intersection = {
-  onConnect() {
+  onFirstConnect() {
     const options = this.name.split("_").slice(1);
     const isOff = options.includes("off");
 
@@ -42,7 +42,7 @@ const Intersection = {
   }
 }
 const I = {
-  onConnect: function () { eventLoopCube.dispatch(null, this); },
+  onFirstConnect: function () { eventLoopCube.dispatch(null, this); },
 }
 
 export {

@@ -76,23 +76,23 @@ class ConnectFrame {
     if (!this.at.ownerElement.isConnected) return;
     this.#state = "portal null";
     if (this.portal === null) return;
-    this.#state = "onConnect null";
-    if (this.portal.onConnect == null) return;
+    this.#state = "onFirstConnect null";
+    if (this.portal.onFirstConnect == null) return;
     this.#state = "portal definition error";
     if (this.portal instanceof Error) return this.#value = this.portal;
-    this.#state = "setting properties and calling onConnect";
+    this.#state = "setting properties and calling onFirstConnect";
     try {
       if (this.portal.properties)
         Object.defineProperties(this.at, this.portal.properties);
-      this.#value = this.portal.onConnect.call(this.at);
+      this.#value = this.portal.onFirstConnect.call(this.at);
       if (this.#value instanceof Promise) {
-        this.#state = "awaiting onConnect";
+        this.#state = "awaiting onFirstConnect";
         await this.#value;
       }
       this.#state = "connected";
     } catch (err) {
       this.#value = err;
-      this.#state = "error calling onConnect or setting properties";
+      this.#state = "error calling onFirstConnect or setting properties";
     }
   }
 
@@ -217,8 +217,8 @@ function* doFirstConnect(el, portalMap) {
   el[PORTALS] = Object.create(null);
   for (let at of el.attributes) {
     const portalName = portalNames(at.name)[0];
-    const portal = portalMap.getTrigger(portalName);
-    if (portal?.onConnect) {
+    const portal = portalMap.get(portalName);
+    if (portal?.onFirstConnect) {
       yield new ConnectFrame(portal, at);
       el[PORTALS][portalName] = portal;
       el[MOVEABLES] ||= !!portal.onMove;
@@ -246,6 +246,7 @@ function* doReConnect(el) {
             yield new ReConnectFrame(el[PORTALS][portalName], at);
 }
 
+//todo this we need to put into the PortalMap?? Or should it be in the eventLoopCube??
 const NameCache = Object.create(null);
 const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
 setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC

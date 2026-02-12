@@ -1,7 +1,7 @@
 //this is the attribute itself for all functions.
 // const PortalDefinition = {
 //   value: function(newValue,oldValue){ ... },
-//   onConnect: function(){...}, //always returns undefined
+//   onFirstConnect: function(){...}, //always returns undefined
 //   onMove: function(){...}, //always returns undefined
 //   onReConnect: function() {...}, //always returns undefined
 //   onDisconnect: function(){...}, //always returns undefined
@@ -49,17 +49,19 @@ export class PortalMap {
         Portal = await Portal;
       if (!(Portal instanceof Object))
         throw new TypeError(`Portal Definition is not an object.`);
-      let { onConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
-      Portal = { onConnect, onDisconnect, reaction, parseArguments, properties, value };
-      if (!onConnect && !reaction)
-        throw new TypeError(`Portal Definition must have either a .onConnect or .reaction property.`);
-      if (!onConnect && (properties || value || onDisconnect))
-        throw new TypeError(`Portal Definition must have .onConnect if it defines .properties, .value, or .onDisconnect.`);
-      const promises = [onConnect, onDisconnect, reaction, parseArguments, properties, value].filter(o => o instanceof Promise);
+      let { onFirstConnect, onDisconnect, reaction, parseArguments, properties, value } = Portal;
+      Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction, parseArguments, properties, value };
+      if (!onFirstConnect && !reaction)
+        throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
+      if (!onFirstConnect && (properties || value || onDisconnect || onReConnect || onMove))
+        throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, .properties, .value, or .onDisconnect.`);
+      const promises = [onFirstConnect, onDisconnect, reaction, parseArguments, properties, value].filter(o => o instanceof Promise);
       if (promises.length)
         await Promise.all(promises);
       reaction && checkArrowThis(reaction);
-      onConnect && checkArrowThis(onConnect);
+      onFirstConnect && checkArrowThis(onFirstConnect);
+      onMove && checkArrowThis(onMove);
+      onReConnect && checkArrowThis(onReConnect);
       onDisconnect && checkArrowThis(onDisconnect);
       parseArguments && checkArrowThis(parseArguments);
       value && checkArrowThis(value);
@@ -74,7 +76,7 @@ export class PortalMap {
         };
         properties.value = { ...OG, set };
       }
-      Portal = { name, onConnect, onDisconnect, reaction, parseArguments, properties };
+      Portal = { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction, parseArguments, properties };
     } catch (err) {
       Portal = new TypeError(`Error defining portal '${name}': ${err.message}`);
     }
@@ -86,7 +88,7 @@ export class PortalMap {
     }
   }
 
-  getTrigger(portalName) {
+  get(portalName) {
     return this.#portals[portalName];
   }
   getReaction(portalName) {
