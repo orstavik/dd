@@ -87,8 +87,8 @@ function keydownIntent(composedPath, currentTarget, event) {
 function clickIntent(composedPath, currentTarget) {
   for (let target of composedPath) {
     try {
-      if (target.matches("a[href], area[href]"))
-        return new Request(URL(target.href, target.baseURI), { method: "GET", referrerPolicy: target.referrerPolicy });
+      if (target.matches("a[href], area[href]") && target.href)
+        return new Request(target.href, { method: "GET", referrerPolicy: target.referrerPolicy });
       if (target.form && target.matches("input[type=submit], input[type=reset], button[type=submit], button[type=reset]"))
         return getFormRequest(target);
       if (target.matches("details>summary:first-of-type"))
