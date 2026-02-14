@@ -32,9 +32,6 @@ export class PortalMap {
 
   #portals = Object.create(null);
   #portalRequests = Object.create(null);
-  #root;
-
-  constructor(root) { this.#root = root; }
 
   define(name, Portal) {
     if (!name.match(/^[a-z][a-z0-9]*$/))
@@ -53,7 +50,7 @@ export class PortalMap {
       if (promises.length) await Promise.all(promises);
       Object.values(Portal).filter(o => typeof o === "function").forEach(checkArrowThis);
       this.#portals[name] = Portal;
-      window.eventLoopCube.connectPortal(name, Portal, this.#root);
+      window.eventLoopCube.connectPortal(name, Portal);
     } catch (err) {
       this.#portals[name] = new TypeError(`Error defining portal '${name}': ${err.message}`);
     } finally {

@@ -103,7 +103,9 @@ export class EventLoopCube {
     //   return row.state === "connected" && row.disconnect === "onDisconnect";
 
   }
-  constructor(disconnectInterval = 1000, cleanupInterval = 3000) {
+  #root;
+  constructor(root, disconnectInterval = 1000, cleanupInterval = 3000) {
+    this.#root = root;
     //runs its own internal gc
     setInterval(_ => this.disconnect(), disconnectInterval);
     // todo the filter is not implemented yet
@@ -199,10 +201,13 @@ export class EventLoopCube {
     frames.length && this.#loop(frames);
   }
 
-  connectPortal(portalName, portal, root) {
-    if (!root[PORTALS]) return; //todo we havn't started yet, so this should not yet run.
+  init() {
+    this.connectBranch(this.#root);
+  }
+  connectPortal(portalName, portal) {
+    if (!this.#root[PORTALS]) return;
     const frames = [];
-    for (let el2 of root.getElementsByTagName("*"))
+    for (let el2 of this.#root.getElementsByTagName("*"))
       if (portalName in el2[PORTALS])
         if (el2[PORTALS][portalName] = true)
           for (let at of el2.attributes)

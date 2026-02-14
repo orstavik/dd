@@ -6,12 +6,12 @@ import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I } from "./4_Portals.js";
 
 DefaultActionMonkey(Event.prototype);
-const eventLoopCube = window.eventLoopCube = new EventLoopCube(1000, 3000);
+const eventLoopCube = window.eventLoopCube = new EventLoopCube(document.documentElement, 1000, 3000);
 window.EventLoopCube = EventLoopCube;
 monkeyPatchAppendElements((...args) => eventLoopCube.connectBranch(...args));
 
 const PortalMap2 = NativePortalMap(PortalMap);
-document.portals = new PortalMap2(document);
+document.portals = new PortalMap2();
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
 // Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= new PortalMap2(this); } });
 
