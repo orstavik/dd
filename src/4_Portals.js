@@ -54,21 +54,9 @@ const I = {
   onFirstConnect: function () { eventLoopCube.dispatch(null, this); },
 }
 
-function hrefClick(e) {
-  e.defaultPrevented || Object.defineProperty(e, "defaultPrevented", { value: this.getAttributeNode("href") });
-};
-const Href = {
-  onFirstConnect() {
-    return (this.ownerElement.tagName === "A" || this.ownerElement.tagName === "AREA") ?
-      this.ownerElement.addEventListener("click", hrefClick) :
-      EventLoopCube.Break;
-  }
-}
-
 export {
   I,
   Attr,
   Intersection,
   Resize,
-  Href,
 };

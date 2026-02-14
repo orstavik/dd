@@ -1,9 +1,11 @@
+import { DefaultActionMonkey } from "./0_EventDefaultAction.js";
 import { PortalMap } from "./1_PortalMap.js";
 import { NativePortalMap } from "./1b_NativePortals.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I, Href } from "./4_Portals.js";
+import { I } from "./4_Portals.js";
 
+DefaultActionMonkey(Event.prototype);
 const eventLoopCube = window.eventLoopCube = new EventLoopCube(1000, 3000);
 window.EventLoopCube = EventLoopCube;
 monkeyPatchAppendElements((...args) => eventLoopCube.connectBranch(...args));
@@ -14,7 +16,6 @@ Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals
 // Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= new PortalMap2(this); } });
 
 document.portals.define("i", I);
-document.portals.define("href", Href);
 
 document.readyState !== "loading" ?
   eventLoopCube.connectBranch(document.documentElement) :

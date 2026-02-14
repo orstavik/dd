@@ -118,7 +118,7 @@ const DefaultAction = Symbol("defaultAction");
 const DefaultActionCaller = Symbol("defaultActionCaller");
 const DefaultActionListener = function (e) { e[DefaultAction].call(e[DefaultActionCaller]); }
 
-function defaultActionMonkey(EventPrototype = Event.prototype) {
+export function DefaultActionMonkey(EventPrototype = Event.prototype) {
   Object.defineProperties(EventPrototype, {
     stopPropagation: { value: () => { throw new ReferenceError("e.stopPropagation() is deprecated."); } },
     stopImmediatePropagation: { value: () => { throw new ReferenceError("e.stopImmediatePropagation() is deprecated."); } }
@@ -147,5 +147,3 @@ function defaultActionMonkey(EventPrototype = Event.prototype) {
     }
   });
 }
-
-export { defaultActionMonkey };
