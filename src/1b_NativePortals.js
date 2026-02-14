@@ -1,5 +1,5 @@
-// const dcl = new Set(["dcl"]); //'DOMContentLoaded' is special because it is uppercase..
-const DocumentOnlyEvents = new Set(['readystatechange', 'pointerlockchange', 'pointerlockerror', 'freeze', 'prerenderingchange', 'resume', 'visibilitychange']);
+const DocumentOnlyEvents = new Set(['DOMContentLoaded', 'readystatechange', 'pointerlockchange', 'pointerlockerror', 'freeze', 'prerenderingchange',
+  'resume', 'visibilitychange']);
 const WindowOnlyEvents = new Set(['appinstalled', 'beforeinstallprompt', 'afterprint', 'beforeprint', 'beforeunload', 'hashchange', 'languagechange',
   'message', 'messageerror', 'offline', 'online', 'pagehide', 'pageshow', 'popstate', 'rejectionhandled', 'storage', 'unhandledrejection', 'unload',
   'devicemotion', 'deviceorientation', 'deviceorientationabsolute', 'pageswap', 'pagereveal', 'YouTubeIframeAPIReady']);
@@ -15,57 +15,104 @@ const DomEvents = new Set(['touchstart', 'touchmove', 'touchend', 'touchcancel',
   'animationiteration', 'animationstart', 'transitionrun', 'transitionstart', 'transitionend', 'transitioncancel', 'copy', 'cut', 'paste', 'command',
   'scrollend', 'scrollsnapchange', 'scrollsnapchanging', 'beforecopy', 'beforecut', 'beforepaste', 'search', 'fullscreenchange', 'fullscreenerror',
   'webkitfullscreenchange', 'webkitfullscreenerror']);
-const allNames = new Set(["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...DomEvents]);
-const isReservedName = name => allNames.has(name) && new TypeError(`Cannot define native event name as portal '${name}'.`);
+const ReservedNames = new RegExp("^(" + ["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...DomEvents].join("|") + ")[._$]");
+
+const NonBubblingEvents = new Set(['focus', 'blur', 'load', 'unload', 'error', 'abort', 'mouseenter', 'mouseleave',
+  'scroll', 'scrollend', 'scrollsnapchange', 'scrollsnapchanging']);
+const ComposedEvents = new Set(['click', 'auxclick', 'dblclick', 'mousedown', 'mouseup', 'focus', 'blur',
+  'pointerdown', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave']);
+const PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)[._$]/;
+
+function getTriggersComposedBubble(type, el) {
+  let attrs, first;
+  for (; el; el = el.assignedSlot ?? el.parentElement ?? el.parentNode.host)
+    if (el[EventLoopCube.PORTAL]?.[type])
+      for (let at of el.attributes)
+        if (EventLoopCube.portalNames(at.name)[0] === type)
+          !first ? (first = at) : (attrs ??= [first]).push(at);
+  return attrs ?? first;
+}
+function getTriggersComposedTarget(type, el) {
+  let attrs, first;
+  for (; el; el = el.assignedSlot ?? el.getRootNode()?.host)
+    if (el[EventLoopCube.PORTAL]?.[type])
+      for (let at of el.attributes)
+        if (EventLoopCube.portalNames(at.name)[0] === type)
+          !first ? (first = at) : (attrs ??= [first]).push(at);
+  return attrs ?? first;
+}
+function getTriggersBubble(type, el) {
+  let attrs, first;
+  for (; el && el instanceof HTMLElement; el = el.parentElement)
+    if (el[EventLoopCube.PORTAL]?.[type])
+      for (let at of el.attributes)
+        if (EventLoopCube.portalNames(at.name)[0] === type)
+          !first ? (first = at) : (attrs ??= [first]).push(at);
+  return attrs ?? first;
+}
+function getTriggersTarget(type, el) {
+  let attrs, first;
+  if (el[EventLoopCube.PORTAL]?.[type])
+    for (let at of el.attributes)
+      if (EventLoopCube.portalNames(at.name)[0] === type)
+        !first ? (first = at) : (attrs ??= [first]).push(at);
+  return attrs ?? first;
+}
+function Trigger(eventName, bubbles, composed) {
+  const propagationPath = (bubbles && composed) ? getTriggersComposedBubble :
+    composed ? getTriggersComposedTarget :
+      bubbles ? getTriggersBubble :
+        getTriggersTarget;
+  return function (e) {
+    e.stopImmediatePropagation();
+    const atOrAttrs = propagationPath(eventName, e.currentTarget);
+    atOrAttrs instanceof Array ?
+      eventLoopCube.dispatchBatch(e, atOrAttrs) :
+      eventLoopCube.dispatch(e, atOrAttrs);
+  };
+}
 const ListenerCache = Object.create(null);
 
-const PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)(?!-prevents)$/;
-function domEventOptions(NAME) {
-  if (PASSIVE.test(NAME)) return { passive: true };
-}
+function makeDefinition(NAME) {
+  let EVENT = NAME.split(/[_.]/)[0];
+  if (EVENT === "dcl") EVENT = "DOMContentLoaded";
+  if (DomEvents.has(EVENT)) {
+    const passive = !NAME.includes("_active") && PASSIVE.test(EVENT);
+    const bubbles = !NonBubblingEvents.has(EVENT);
+    const composed = ComposedEvents.has(EVENT);
+    const listener = ListenerCache[NAME] ??= Trigger(EVENT, bubbles, composed);
 
-const ElementEvent = NAME => Object.freeze({
-  onFirstConnect: function () {
-    this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this), domEventOptions(NAME));
-  },
-  reaction: function () {
-    this.ownerElement.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
+    return Object.freeze({
+      onFirstConnect: function () { this.ownerElement.addEventListener(EVENT, listener, { passive }); },
+      reaction: function () { this.ownerElement.dispatchEvent(new Event(EVENT, { bubbles, composed })); }
+    });
   }
-});
-const DocumentEvent = NAME => Object.freeze({
-  onFirstConnect: function () {
-    this.ownerElement.getRootNode().addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this));
-  },
-  reaction: function () {
-    this.ownerElement.getRootNode().dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
-  }
-});
-const WindowEvent = NAME => Object.freeze({
-  onFirstConnect: function () {
-    window.addEventListener(NAME, ListenerCache[NAME] ??= e => eventLoopCube.dispatch(e, this));
-  },
-  reaction: function () {
-    window.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
-  }
-});
+  if (WindowOnlyEvents.has(EVENT))
+    return Object.freeze({
+      onFirstConnect: function () { window.addEventListener(EVENT, dispatchEvent); },
+      reaction: function () { window.dispatchEvent(new Event(EVENT)); }
+    });
+  if (DocumentOnlyEvents.has(EVENT))
+    return Object.freeze({
+      onFirstConnect: function () { this.ownerElement.getRootNode().addEventListener(EVENT, dispatchEvent); },
+      reaction: function () { this.ownerElement.getRootNode().dispatchEvent(new Event(EVENT)); }
+    });
+  return false;
+}
 
 const CACHE = Object.create(null);
-const getNativeEvent = NAME => {
-  if (NAME in CACHE)
-    return CACHE[NAME];
-  const portal = NAME.split(/[._:]/)[0];
-  return CACHE[NAME] = CACHE[portal] ??
-    (DomEvents.has(portal) ? ElementEvent(portal) :
-      WindowOnlyEvents.has(portal) ? WindowEvent(portal) :
-        DocumentOnlyEvents.has(portal) ? DocumentEvent(portal) :
-          portal === "dcl" ? DocumentEvent("DOMContentLoaded") :
-            undefined);
-}
-
 export function NativePortalMap(PortalMap) {
   return class NativePortalMap extends PortalMap {
-    define(name, Portal) { return isReservedName(name) || super.define(name, Portal); }
-    getReaction(name) { return getNativeEvent(name) ?? super.getReaction(name); }
-    get(name) { return getNativeEvent(name) ?? super.get(name); }
+    define(name, Portal) {
+      if (ReservedNames.test(name))
+        throw new SyntaxError(`native event name '${name}' is already defined.`);
+      return super.define(name, Portal);
+    }
+    getReaction(name) {
+      return (CACHE[name] ??= makeDefinition(name)) || super.getReaction(name);
+    }
+    get(name) {
+      return (CACHE[name] ??= makeDefinition(name)) || super.get(name);
+    }
   }
 }

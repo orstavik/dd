@@ -1,0 +1,16 @@
+<div click:three>
+  <div click:one click:two i:click>
+    <details>
+      <summary>click me</summary>
+      <p>hello</p>
+    </details>
+  </div>
+</div>
+<script type="module">
+
+  import * as dd from "../src/dd.js";
+
+  document.portals.define("one", { reaction: e => console.log("one") });
+  document.portals.define("two", { reaction: e => console.log("two") });
+  document.portals.define("three", { reaction: e => console.log("three") });
+</script>

@@ -18,9 +18,9 @@ Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals
 document.portals.define("i", I);
 
 document.readyState !== "loading" ?
-  eventLoopCube.connectBranch(document.documentElement) :
+  eventLoopCube.init() :
   document.addEventListener("DOMContentLoaded", _ =>
-    eventLoopCube.connectBranch(document.documentElement));
+    eventLoopCube.init());
 
 // import * as wait from "../../x/wait/v1.js";
 //todo this should probably be Wait_ too

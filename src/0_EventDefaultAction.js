@@ -88,7 +88,7 @@ function clickIntent(composedPath, currentTarget) {
   for (let target of composedPath) {
     try {
       if (target.matches("a[href], area[href]") && target.href)
-        return new Request(target.href, { method: "GET", referrerPolicy: target.referrerPolicy });
+        return new Request(target.href, { credentials: "include", referrerPolicy: target.referrerPolicy });
       if (target.form && target.matches("input[type=submit], input[type=reset], button[type=submit], button[type=reset]"))
         return getFormRequest(target);
       if (target.matches("details>summary:first-of-type"))
@@ -119,10 +119,10 @@ const DefaultActionCaller = Symbol("defaultActionCaller");
 const DefaultActionListener = function (e) { e[DefaultAction].call(e[DefaultActionCaller]); }
 
 export function DefaultActionMonkey(EventPrototype = Event.prototype) {
-  Object.defineProperties(EventPrototype, {
-    stopPropagation: { value: () => { throw new ReferenceError("e.stopPropagation() is deprecated."); } },
-    stopImmediatePropagation: { value: () => { throw new ReferenceError("e.stopImmediatePropagation() is deprecated."); } }
-  });
+  // Object.defineProperties(EventPrototype, {
+  //   stopPropagation: { value: () => { throw new ReferenceError("e.stopPropagation() is deprecated."); } },
+  //   stopImmediatePropagation: { value: () => { throw new ReferenceError("e.stopImmediatePropagation() is deprecated."); } }
+  // });
 
   const preventDefaultOG = EventPrototype.preventDefault;
   Object.defineProperty(EventPrototype, "defaultPrevented", {

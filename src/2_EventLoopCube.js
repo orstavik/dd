@@ -1,8 +1,3 @@
-//todo this we need to put into the PortalMap?? Or should it be in the eventLoopCube??
-let NameCache = Object.create(null);
-const portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
-setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
-
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -12,7 +7,7 @@ class MicroFrame {
     this.root = at.ownerElement.getRootNode();
     this.event = event;
     this.names = at.name.split(":");
-    this.portalNames = portalNames(at.name);
+    this.portalNames = EventLoopCube.portalNames(at.name);
     this.#inputs = [event];
   }
 
@@ -104,6 +99,7 @@ export class EventLoopCube {
 
   }
   #root;
+  #started;
   constructor(root, disconnectInterval = 1000, cleanupInterval = 3000) {
     this.#root = root;
     //runs its own internal gc
@@ -136,8 +132,16 @@ export class EventLoopCube {
     return;
   }
 
-  dispatch(e, at) { this.#loop([new MicroFrame(e, at)]); }
-  dispatchBatch(e, iter) { this.#loop([...iter].map(at => new MicroFrame(e, at))); }
+  dispatch(e, at) {
+    (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
+      this.#cube[this.#I].push(new MicroFrame(e, at)) :
+      this.#loop([new MicroFrame(e, at)]);
+  }
+  dispatchBatch(e, attrs) {
+    (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
+      this.#cube[this.#I].push(...attrs.map(at => new MicroFrame(e, at))) :
+      this.#loop(attrs.map(at => new MicroFrame(e, at)));
+  }
   disconnect() {
     for (let at of this.#disconnectables.keys())
       if (!at.ownerElement.isConnected) {
@@ -155,44 +159,44 @@ export class EventLoopCube {
     const portalMap = els[0]?.ownerDocument.portals;
     const frames = [];
     for (let top of els) {
-      const task = !top[PORTALS] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
+      const task = !top[EventLoopCube.PORTAL] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
       for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
         if (task === "doFirstConnect") {
           if (!el.hasAttributes())
             continue;
-          el[PORTALS] = Object.create(null);
+          el[EventLoopCube.PORTAL] = Object.create(null);
           for (let at of el.attributes) {
-            const portalName = portalNames(at.name)[0];
+            const portalName = EventLoopCube.portalNames(at.name)[0];
             const portal = portalMap.get(portalName);
-            el[PORTALS][portalName] ??= undefined;
+            el[EventLoopCube.PORTAL][portalName] ||= false;
             if (portal?.onFirstConnect) {
               const res = portal.onFirstConnect.call(at);
               const frame = ConnectFrame.make("onFirstConnect", portal, at, res);
               if (res !== EventLoopCube.Break) {
                 frames.push(frame);
-                el[PORTALS][portalName] = portal;
-                el[MOVEABLES] ||= !!portal.onMove;
-                el[RECONNECTABLES] ||= !!portal.onReconnect;
+                el[EventLoopCube.PORTAL][portalName] = portal;
+                el[EventLoopCube.MOVEABLES] ||= !!portal.onMove;
+                el[EventLoopCube.RECONNECTABLES] ||= !!portal.onReconnect;
                 portal.onDisconnect && this.#disconnectables.set(at, portal);
               }
             }
           }
         } else if (task === "doMove") {
-          if (el[MOVEABLES])
-            for (let portalName in el[PORTALS]) {
-              const portal = el[PORTALS][portalName];
+          if (el[EventLoopCube.MOVEABLES])
+            for (let portalName in el[EventLoopCube.PORTAL]) {
+              const portal = el[EventLoopCube.PORTAL][portalName];
               if (portal?.onMove)
                 for (let at of el.attributes)
-                  if (portalNames(at.name)[0] === portalName)
+                  if (EventLoopCube.portalNames(at.name)[0] === portalName)
                     frames.push(ConnectFrame.make("onMove", portal, at, portal.onMove.call(at)));
             }
         } else if (task === "doReConnect") {
-          if (el[RECONNECTABLES])
-            for (let portalName in el[PORTALS]) {
-              const portal = el[PORTALS][portalName];
+          if (el[EventLoopCube.RECONNECTABLES])
+            for (let portalName in el[EventLoopCube.PORTAL]) {
+              const portal = el[EventLoopCube.PORTAL][portalName];
               if (portal?.onReconnect)
                 for (let at of el.attributes)
-                  if (portalNames(at.name)[0] === portalName)
+                  if (EventLoopCube.portalNames(at.name)[0] === portalName)
                     frames.push(ConnectFrame.make("onReConnect", portal, at, portal.onReconnect.call(at)));
             }
         }
@@ -202,21 +206,27 @@ export class EventLoopCube {
   }
 
   init() {
+    if (this.#started) return;
+    this.#started = true;
     this.connectBranch(this.#root);
   }
   connectPortal(portalName, portal) {
-    if (!this.#root[PORTALS]) return;
+    if (!this.#started) return;
     const frames = [];
     for (let el2 of this.#root.getElementsByTagName("*"))
-      if (portalName in el2[PORTALS])
-        if (el2[PORTALS][portalName] = true)
+      if (el2[EventLoopCube.PORTAL]?.[portalName] === false)
+        if (el2[EventLoopCube.PORTAL][portalName] = portal)
           for (let at of el2.attributes)
-            if (portalNames(at.name)[0] === portalName)
+            if (EventLoopCube.portalNames(at.name)[0] === portalName)
               frames.push(new ConnectFrame(portal, at));
     frames.length && this.#loop(frames);
   }
+  static PORTAL = Symbol("portals");
+  static MOVEABLES = Symbol("moveables");
+  static RECONNECTABLES = Symbol("reconnectables");
+  static portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
 }
 
-const PORTALS = Symbol("portals");
-const MOVEABLES = Symbol("moveables");
-const RECONNECTABLES = Symbol("reconnectables");
+let NameCache = Object.create(null);
+setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
+
