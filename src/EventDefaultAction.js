@@ -139,8 +139,9 @@ function defaultActionMonkey(EventPrototype = Event.prototype) {
       if ((oldCb instanceof Function) === (newCb instanceof Function))
         return;
       const lastTarget = this.bubbles ? window :
-        this.target.getRootNode() === document ? this.target :
-          this.composedPath().find(el => el.getRootNode() === document);
+        !this.composed ? this.target : //there is a super edge case where focus events can travel multiple shadowRoots, but not sure if that applies anymore.
+          this.target.getRootNode() === document ? this.target :
+            this.composedPath().find(el => el.getRootNode() === document);
       oldCb instanceof Function && lastTarget.removeEventListener(this.type, DefaultActionListener, { once: true });
       newCb instanceof Function && lastTarget.addEventListener(this.type, DefaultActionListener, { once: true });
     }
