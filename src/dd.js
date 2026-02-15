@@ -1,3 +1,4 @@
+import { FormSubmitRequestFix } from "./0_FormSubmitRequestFix.js";
 import { DefaultActionMonkey } from "./0_EventDefaultAction.js";
 import { PortalMap } from "./1_PortalMap.js";
 import { NativePortalMap } from "./1b_NativePortals.js";
@@ -5,6 +6,7 @@ import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I } from "./4_Portals.js";
 
+FormSubmitRequestFix(HTMLFormElement.prototype);
 DefaultActionMonkey(Event.prototype);
 window.EventLoopCube = EventLoopCube;
 

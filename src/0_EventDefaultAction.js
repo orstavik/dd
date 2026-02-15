@@ -15,127 +15,105 @@
 //default action (that, yes, is closer to the target, but no, for some other reason, is deemed less relevant to the
 //user intent).
 //
-//.defaultPrevented => returns <element|Request|Function|false>. The .defaultPrevented tells us if a default action has been
-//associated with an event. This echoes native behavior in that if *no* default action is added, then false is returned,
-//but if another default action has been added, truthy is returned. 
-//Native default action for navigation and xhr is special and yields a Request object.
-//Custom default actions return the function that will be called at the end of the event propagation.
-//Other native default actions return the element associated with the action:
-//  toggle and focus: element to be focused or toggled.
-//  form input, select, textarea: the element who has default action associated with an event.
-//    Edge case: "Enter" on <input type=checkbox> and <input type=color>.
-//    Browser behavior sometimes can interpret "Enter" as select. 
-//    In this system, "Enter" is *always* treated as a <form submit>.
-//    "Space to select, enter to submit" is the rule.
-//
 //.preventDefault(cb) => add a default action that will run at the end of the event propagation.
 //If the event bubbles, the default action will be added as a last event listener on the window for the same event.
 //If the event does not bubble, the default action will be added on the uppermost target.
+//
+//
+//Exposing native default actions:  .defaultPrevented => <Function|undefined|false>
+//
+//.defaultPrevented marks developer/third-party-developer/browser-developer intent.
+//a default action is something that a developer (or browser) has interpreted a user interaction to mean.
+//
+//if somebody called .preventDefault(), then .defaultPrevented is undefined.
+//if somebody called .preventDefault(cb), then .defaultPrevented is that cb.
+//if nobody called .preventDefault(), then .defaultPrevented will be a function iff
+//the browser will associate a default action for this event upto the currentTarget or false.
+//Thus, .defaultPrevented tells us if a default action has been associated with an event hitherto in propagation. 
+//This expands, but mirrors, the browsers except that now .defaultPrevented will
+//give us the callback when a default action will run, and undefined will always mean that no default action will run.
+//
+//Native defaultAction cb function objects has a .element property that points to the element that triggers the default action.
+//
+//Custom default actions return the function that will be called at the end of the event propagation.
+//Edge case 1: "Enter" on <input type=checkbox|radio|color>.
+//    Browser behavior sometimes can interpret "Enter" as select. 
+//    In this system, "Enter" is *always* treated as a <form submit>.
+//    "Space to select, enter to submit" is the rule.
+//Edge case 2: <button|input type=button> browser-developer associates no action with this thing.
+//    However, the convention is that this will have an intent by the developer/3.party-developer, 
+//    thus avoiding submit on click/enter default actions.
+//
+//INCLUSIVE .actions!! We do ALL the .actions that match an element, not just the first match.
 
-function getFormRequest(submitter) {
-  const form = submitter.tagName === 'FORM' ? submitter : submitter.form;
-  if (!form) return;
-  const method = (submitter.getAttribute('formmethod') || form.getAttribute('method') || 'GET').toUpperCase();
-  if (method === "DIALOG")
-    return form.closest("dialog");
-  const formData = new FormData(form);
-  form !== submitter && submitter.name && formData.append(submitter.name, submitter.value);
-  const action = submitter.getAttribute('formaction') || form.getAttribute('action') || window.location.href;
-  const enctype = submitter.getAttribute('formenctype') || form.getAttribute('enctype') || 'application/x-www-form-urlencoded';
-  let referrerPolicy = form.getAttribute('referrerpolicy') || undefined;
-  const rel = form.getAttribute('rel');
-  if (rel && rel.toLowerCase().split(' ').includes('noreferrer'))
-    referrerPolicy = 'no-referrer';
-  const credentials = "include";
-  const init = { method, credentials, referrerPolicy };
-  const url = new URL(action, window.document.baseURI);
-  if (method === "GET") {
-    url.search = new URLSearchParams(formData);
-    return new Request(url, init);
+const DefaultActions = {
+  click: {
+    matcher: "a[href], area[href], label, button[type=submit], button[type=reset], input, option, select, textarea," +
+      "[contenteditable=true], [tabindex], form button:not([type]), details>summary:first-of-type",
+    actions: {
+      "a[href],area[href]": t => t.cloneNode().click(),
+      "form :is([type=submit],[type=image],button:not([type]))": el => el.form?.submit(el),
+      "label": t => _ => t.control?.focus(),
+      "summary": t => _ => t.parentElement?.tagName === "DETAILS" && t.parentElement.toggleAttribute("open"),
+      "[type=reset]": t => _ => t.form?.reset(),
+      "[type=checkbox],[type=radio]": t => _ => t.toggleAttribute("checked"),
+      "option": t => _ => t.parentElement.value = t.value, //todo this seems weak
+      "*": t => t.focus(),
+    },
+  },
+  //todo lots to add here, like tabbing around and stuff.
+  keydown: {
+    matcher: "a[href], area[href], input, textarea, [contenteditable=true], button[type=submit], button[type=reset], form button:not([type])",
+    actions: {
+      "a[href],area[href]":
+        (t, e) => (e.key === "Enter" || e.key === " ") && t.cloneNode().click(),  //space toggles, enter submits. But we don't include checkbox, radio, color...
+      ":is(input,button):not([type=button],[type=reset],[type=file],[type=color],[type=range],[type=checkbox],[type=radio],[type=hidden])":
+        (t, e) => (e.key === "Enter") && t.form?.submit(t),
+      "select": t => t.toggleAttribute("open"), //todo does this work?
+      "*": t => t.hasFocus || t.focus(), //adding or removing the enter character, we don't do,
+    },
   }
-  if (enctype === 'multipart/form-data')
-    return new Request(url, { ...init, body: formData });
-  if (enctype === 'text/plain')
-    return new Request(url, {
-      ...init,
-      body: [...formData].map(([k, v]) => `${k}=${v}`).join('\r\n'),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-  return new Request(url, { ...init, body: new URLSearchParams(formData) });
 }
 
-const EnterSubmitInputsMatch = `input:not([type]),
-input[type=text],input[type=search],input[type=url],input[type=tel],input[type=email],input[type=password],input[type=number],
-input[type=date],input[type=month],input[type=week],input[type=time],input[type=datetime-local],
-input[type=checkbox],input[type=radio],input[type=color]`;
-
-function keydownIntent(composedPath, currentTarget, event) {
-  for (let target of composedPath) {
-    if (target.matches("textarea")) return target;
-    if (event.key == 'Enter' && target.matches("a[href], button, input[type=submit], input[type=reset], input[type=button], input[type=image]"))
-      return clickIntent(composedPath, currentTarget, event);
-    if (event.key == 'Enter' && target.form && target.matches(EnterSubmitInputsMatch))
-      return getFormRequest(
-        target.form.querySelector("button:not([type]), button[type=submit], input[type=submit], input[type=image]") ??
-        target.form);
-    if (target.matches("form, input, select, textarea, button"))
-      return target;
-    if (target === currentTarget) return;
-  }
-}
-
-function clickIntent(composedPath, currentTarget) {
-  for (let target of composedPath) {
-    try {
-      if (target.matches("a[href], area[href]") && target.href)
-        return new Request(target.href, { credentials: "include", referrerPolicy: target.referrerPolicy });
-      if (target.form && target.matches("input[type=submit], input[type=reset], button[type=submit], button[type=reset]"))
-        return getFormRequest(target);
-      if (target.matches("details>summary:first-of-type"))
-        return target.parentElement;
-      if (target.matches("dialog[open]"))
-        return target;
-      if (target.matches("label") && target.control)
-        return target.control;
-      if (target.matches("input, select, textarea"))
-        return target;
-      if (target === currentTarget)
-        return;
-    } catch (cause) {
-      //prints errors to console, the browser will run as if nothing happened. as it does normally too.
-      console.error(new Error("Native default action looks wrong: " + target.outerHTML, { cause }));
+function nativeDefaultAction() {
+  const da = super.defaultPrevented;
+  if (da === undefined || da instanceof Function)
+    return da;
+  if (!DefaultActions[this.type])
+    return false;
+  const { matcher, actions } = DefaultActions[this.type];
+  for (let el = this.composedPath()[0]; el; el = el !== this.currentTarget && el.assignedSlot ?? el.parentElement ?? el.parentNode?.host)
+    if (el.matches(matcher)) {
+      const defaultAction = (actions, element) => {
+        if (!this.defaultPrevented && Date.now() - this.timeStamp < 150 && eventLoop.hasFocus(this))
+          for (let m in actions)
+            if (element.matches(m))
+              actions[m](element, this);
+      }
+      defaultAction.element = el;
+      return defaultAction;
     }
-  }
 }
 
-const NativeIntents = {
-  click: clickIntent,
-  mousedown: clickIntent,
-  keydown: event => event.key === "Enter" ? keydownIntent(event.composedPath(), event.currentTarget, event) : undefined
-}
+Object.defineProperty(MouseEvent.prototype, "defaultPrevented", { get: nativeDefaultAction });
+Object.defineProperty(KeyboardEvent.prototype, "defaultPrevented", { get: nativeDefaultAction });
 
 const DefaultAction = Symbol("defaultAction");
 const DefaultActionCaller = Symbol("defaultActionCaller");
 const DefaultActionListener = function (e) { e[DefaultAction].call(e[DefaultActionCaller]); }
 
 export function DefaultActionMonkey(EventPrototype = Event.prototype) {
-  // Object.defineProperties(EventPrototype, {
-  //   stopPropagation: { value: () => { throw new ReferenceError("e.stopPropagation() is deprecated."); } },
-  //   stopImmediatePropagation: { value: () => { throw new ReferenceError("e.stopImmediatePropagation() is deprecated."); } }
-  // });
-
   const preventDefaultOG = EventPrototype.preventDefault;
   Object.defineProperty(EventPrototype, "defaultPrevented", {
-    get: function () {
-      return (this[DefaultAction] ??= NativeIntents[this.type]?.(this.composedPath(), this.currentTarget, this)) || false;
-    }
+    get: function () { return DefaultAction in this ? this[DefaultAction] : false; }
   });
   Object.defineProperty(EventPrototype, "preventDefault", {
     value: function (newCb) {
+      newCb ||= undefined;
       preventDefaultOG.call(this);
       this[DefaultActionCaller] = this.currentTarget;
       const oldCb = this[DefaultAction];
-      this[DefaultAction] = newCb || false;
+      this[DefaultAction] = newCb;
       if ((oldCb instanceof Function) === (newCb instanceof Function))
         return;
       const lastTarget = this.bubbles ? window :
