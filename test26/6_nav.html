@@ -1,4 +1,9 @@
-<div click::nav popstate::nav hashchange::nav nav:log data-nav=" /blueberry">
+<div
+  click::nav
+  popstate::nav
+  hashchange::nav
+  nav:log
+  data-nav=" /blueberry">
   ----------------
   <a href="#alice">alice</a>
   <br>
@@ -21,7 +26,6 @@
   document.portals.define("nav", {
     onFirstConnect: function () { navs.add(new WeakRef(this)); },
     reaction: function (...args) {
-      debugger
       const e = args.at(-1);
       if (!e.eventPhase)
         return;
@@ -35,7 +39,6 @@
       const url = new URL(href);
       if (url.origin !== location.origin)
         return;
-      e.preventDefault();
       const controller = this.ownerElement.getRootNode().querySelector("[data-nav]");
       if (controller) {
         const [whitelist, ...blacklist] = controller.getAttribute("data-nav").split(" ").map(s => s.trim());
@@ -44,6 +47,7 @@
         if (blacklist.some(bl => url.pathname.startsWith(bl)))
           return;
       }
+      e.preventDefault();
       history.pushState({}, "", url);
       const attrs = []
       for (const nav of navs) {
@@ -53,7 +57,7 @@
         else if (at.ownerElement.isConnected)
           attrs.push(at);
       }
-      eventLoop.dispatchBatch(url, attrs);
+      attrs.length && eventLoopCube.dispatchBatch(url, attrs);
     },
   });
 

@@ -29,35 +29,38 @@ class MicroFrame {
   }
 
   async run() {
-    try {
-      for (let re = this.names[this.#i]; re !== undefined; re = this.names[++this.#i]) {
-        if (re === "") {
-          this.#inputs.unshift(EventLoopCube.DefaultAction);
-          this.#i++;
+    let portal;
+    for (let re = this.names[this.#i]; re !== undefined; re = this.names[++this.#i]) {
+      if (re === "") {
+        this.#inputs.unshift(EventLoopCube.DefaultAction);
+        this.#i++;
+        if (this.root.portals.getReaction(this.portalNames[this.#i]) instanceof Promise) {
+          portal = new Error(`Asynchronous defaultActions: ":${this.names[this.#i]}" not yet loaded in "${this.at.name}"`);
           break;
         }
-        let portal = this.root.portals.getReaction(this.portalNames[this.#i]);
-        if (portal instanceof Promise) {
-          this.#checkLegalTail("loading definition");
-          portal = await portal;
-        }
-        if (portal instanceof Error)
-          throw portal;
-        if (portal.reaction === null)
-          throw new Error("reaction is null: " + re);
-        this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
-        if (this.#inputs[0] instanceof Promise) {
-          this.#checkLegalTail("executing function");
-          this.#inputs[0] = await this.#inputs[0];
-        }
-        if (this.#inputs[0] === EventLoopCube.Cancel)
-          break;
-        if (this.#inputs[0] === EventLoopCube.Void)
-          this.#inputs.shift();
       }
-    } catch (err) {
-      console.error(err);
-      this.#inputs.unshift(err);
+      portal = this.root.portals.getReaction(this.portalNames[this.#i]);
+      if (portal instanceof Promise) {
+        this.#checkLegalTail("loading definition");
+        portal = await portal;
+      }
+      if (portal instanceof Error) break;
+      if (portal.reaction === null) {
+        portal = new Error("reaction is null: " + re);
+        break;
+      }
+      this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
+      if (this.#inputs[0] instanceof Promise) {
+        this.#checkLegalTail("executing function");
+        try { this.#inputs[0] = await this.#inputs[0]; } catch (err) { this.#inputs[0] = err; }
+        if (this.#inputs[0] instanceof Error) break;
+      }
+      if (this.#inputs[0] === EventLoopCube.Cancel) break;
+      if (this.#inputs[0] === EventLoopCube.Void) this.#inputs.shift();
+    }
+    if (portal instanceof Error) {
+      console.error(portal);
+      this.#inputs.unshift(portal);
     }
     return this.#inputs[0];
   }
@@ -153,7 +156,7 @@ export class EventLoopCube {
               continue;                                        //then we try the next defaultAction.
             defActRes.then?.(res => {
               if (res === EventLoopCube.Cancel)
-                throw new Error("defaultActions should not return EventLoopCube.Cancel asynchronously: " + row[j].at.name);
+                throw new Error("defaultActions returned EventLoopCube.Cancel asynchronously: " + row[j].at.name);
             });
           }
       //default action handling end
@@ -243,7 +246,7 @@ export class EventLoopCube {
         if (el2[EventLoopCube.PORTAL][portalName] = portal)
           for (let at of el2.attributes)
             if (EventLoopCube.portalNames(at.name)[0] === portalName)
-              frames.push(new ConnectFrame(portal, at));
+              frames.push(ConnectFrame.make("onFirstConnect", portal, at, portal.onFirstConnect.call(at)));
     frames.length && this.#loop(frames);
   }
   static Cancel = Symbol("Cancel");
