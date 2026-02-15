@@ -12,12 +12,14 @@ class MicroFrame {
   }
 
   #checkLegalTail(type) {
-    const tail = this.names.slice(this.#i);
-    const error = tail.includes("") ? "::default:action" : tail.includes("prevent") ? ":prevent" : null;
-    if (!error) return;
+    const i = this.names.indexOf("");
+    if (i <= this.#i)
+      return;
     this.event.preventDefault();
-    throw new Error(error + " is left behind an async reaction while " + type + ".\n" +
-      this.names.slice(0, this.#i).join(":") + "  <=(awaits here)  :" + this.names.slice(this.#i).join(":"));
+    const errorNames = [...this.names];
+    errorNames[this.#i] += " >>awaits here<< ";
+    errorNames[i - 1] += " >>defaultAction start<< ";
+    throw new Error("A defaultAction is left behind an async reaction while " + type + ".\n" + errorNames.join(":"));
   }
 
   getState() {
