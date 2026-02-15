@@ -1,5 +1,5 @@
-<div click::nav popstate::nav hashchange::nav nav:log>
-  <!-- ----------------
+<div click::nav popstate::nav hashchange::nav nav:log data-nav=" /blueberry">
+  ----------------
   <a href="#alice">alice</a>
   <br>
   <a href="#bob">bob</a>
@@ -12,7 +12,6 @@
     <summary i:click>details</summary>
     <p>paragraph</p>
   </details>
-   -->
 </div>
 <script type="module">
 
@@ -21,20 +20,25 @@
   const navs = new Set();
   document.portals.define("nav", {
     onFirstConnect: function () { navs.add(new WeakRef(this)); },
-    reaction: function (e) {
+    reaction: function (...args) {
+      debugger
+      const e = args.at(-1);
+      if (!e.eventPhase)
+        return;
       const defaultActionElement = e.defaultAction?.element;
       if (!defaultActionElement)
-        return EventLoopCube.Break;
+        return EventLoopCube.Cancel;
       const href = defaultActionElement.href ?? defaultActionElement.request?.url;
       if (!href)
-        return EventLoopCube.Break;
+        return EventLoopCube.Cancel;
+      //We have a navigation event, that is meant for :nav:. After this point we commit, and we no longer EventLoopCube.Cancel.
       const url = new URL(href);
       if (url.origin !== location.origin)
-        return; //here we don't EventLoopCube.Break. We see that the defaultAction is a navigation event, and so we make a choice
+        return;
       e.preventDefault();
-      const controller = this.ownerElement.getRootNode().querySelector("[nav]");
+      const controller = this.ownerElement.getRootNode().querySelector("[data-nav]");
       if (controller) {
-        const [whitelist, ...blacklist] = controller.getAttribute("nav").split(",").map(s => s.trim());
+        const [whitelist, ...blacklist] = controller.getAttribute("data-nav").split(" ").map(s => s.trim());
         if (!url.pathname.startsWith(whitelist))
           return;
         if (blacklist.some(bl => url.pathname.startsWith(bl)))
@@ -53,9 +57,9 @@
     },
   });
 
-  // document.portals.define("log", {
-  //   reaction: function (e) { console.log(e.defaultPrevented); },
-  // });
+  document.portals.define("log", {
+    reaction: function (e) { console.log(e); },
+  });
 
   // document.portals.define("click", {
   //   onFirstConnect: function () {

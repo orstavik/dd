@@ -216,26 +216,26 @@
     if (PASSIVE.test(NAME)) return { passive: true };
   }
   var ElementEvent = (NAME) => Object.freeze({
-    onFirstConnect: function() {
+    onFirstConnect: function () {
       this.ownerElement.addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this), domEventOptions(NAME));
     },
-    reaction: function() {
+    reaction: function () {
       this.ownerElement.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
     }
   });
   var DocumentEvent = (NAME) => Object.freeze({
-    onFirstConnect: function() {
+    onFirstConnect: function () {
       this.ownerElement.getRootNode().addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this));
     },
-    reaction: function() {
+    reaction: function () {
       this.ownerElement.getRootNode().dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
     }
   });
   var WindowEvent = (NAME) => Object.freeze({
-    onFirstConnect: function() {
+    onFirstConnect: function () {
       window.addEventListener(NAME, ListenerCache[NAME] ??= (e) => eventLoopCube.dispatch(e, this));
     },
-    reaction: function() {
+    reaction: function () {
       window.dispatchEvent(Object.assign(new Event(NAME, { bubbles: true })));
     }
   });
@@ -411,7 +411,7 @@
               if (portal?.onFirstConnect) {
                 const res = portal.onFirstConnect.call(at);
                 const frame = ConnectFrame.make("onFirstConnect", portal, at, res);
-                if (res !== _EventLoopCube.Break) {
+                if (res !== _EventLoopCube.Cancel) {
                   frames.push(frame);
                   el[PORTALS][portalName] = portal;
                   el[MOVEABLES] ||= !!portal.onMove;
@@ -559,7 +559,7 @@
       [Element.prototype, "outerHTML", outerHTMLsetter]
     ];
     for (const [obj, prop, monkey] of map) {
-      let monkey2 = function(...args) {
+      let monkey2 = function (...args) {
         return monkey.call(this, og, ...args);
       };
       const d = Object.getOwnPropertyDescriptor(obj, prop);
@@ -574,7 +574,7 @@
 
   // src/4_Portals.js
   var I = {
-    onFirstConnect: function() {
+    onFirstConnect: function () {
       eventLoopCube.dispatch(null, this);
     }
   };

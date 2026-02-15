@@ -50,7 +50,7 @@ class MicroFrame {
           this.#checkLegalTail("executing function");
           this.#inputs[0] = await this.#inputs[0];
         }
-        if (this.#inputs[0] === EventLoopCube.Break)
+        if (this.#inputs[0] === EventLoopCube.Cancel)
           break;
         if (this.#inputs[0] === EventLoopCube.Void)
           this.#inputs.shift();
@@ -149,11 +149,11 @@ export class EventLoopCube {
         for (let j = this.#J - 1; j >= 0; j--)                 //when we run the default actions in reverse, 
           if (row[j].result === EventLoopCube.DefaultAction) { //and find the top defaultAction
             const defActRes = row[j].run();
-            if (defActRes === EventLoopCube.Break)             //and that defaultAction returns EventLoopCube.Break (ie. cancels)
+            if (defActRes === EventLoopCube.Cancel)             //and that defaultAction returns EventLoopCube.Cancel
               continue;                                        //then we try the next defaultAction.
             defActRes.then?.(res => {
-              if (res === EventLoopCube.Break)
-                throw new Error("defaultActions should not return EventLoopCube.Break asynchronously: " + row[j].at.name);
+              if (res === EventLoopCube.Cancel)
+                throw new Error("defaultActions should not return EventLoopCube.Cancel asynchronously: " + row[j].at.name);
             });
           }
       //default action handling end
@@ -203,7 +203,7 @@ export class EventLoopCube {
             if (portal?.onFirstConnect) {
               const res = portal.onFirstConnect.call(at);
               const frame = ConnectFrame.make("onFirstConnect", portal, at, res);
-              if (res !== EventLoopCube.Break) {
+              if (res !== EventLoopCube.Cancel) {
                 frames.push(frame);
                 el[EventLoopCube.PORTAL][portalName] = portal;
                 el[EventLoopCube.MOVEABLES] ||= !!portal.onMove;
@@ -246,7 +246,7 @@ export class EventLoopCube {
               frames.push(new ConnectFrame(portal, at));
     frames.length && this.#loop(frames);
   }
-  static Break = Symbol("Break");
+  static Cancel = Symbol("Cancel");
   static Void = Symbol("void");
   static DefaultAction = Symbol("DefaultAction");
   static PORTAL = Symbol("portals");
