@@ -50,7 +50,7 @@ export class PortalMap {
       if (promises.length) await Promise.all(promises);
       Object.values(Portal).filter(o => typeof o === "function").forEach(checkArrowThis);
       this.#portals[name] = Portal;
-      window.eventLoopCube.connectPortal(name, Portal);
+      window.eventLoopCube?.connectPortal(name, Portal);
     } catch (err) {
       this.#portals[name] = new TypeError(`Error defining portal '${name}': ${err.message}`);
     } finally {

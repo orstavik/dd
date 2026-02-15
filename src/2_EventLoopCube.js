@@ -98,10 +98,22 @@ export class EventLoopCube {
     //   return row.state === "connected" && row.disconnect === "onDisconnect";
 
   }
+  static init(owner, root) {
+    const cube = new EventLoopCube(root, 1000, 3000);
+    owner.eventLoopCube = cube;
+    cube.#root = root;
+    cube.connectBranch(root);
+    return cube;
+  }
+
   #root;
-  #started;
-  constructor(root, disconnectInterval = 1000, cleanupInterval = 3000) {
-    this.#root = root;
+  #cube; //[...events : [...microFrames]]  //todo in a more efficient world, this would be a single flat array.
+  #I = 0;
+  #J = 0;
+  #active = false;
+  #disconnectables = new Map();
+  constructor(disconnectInterval = 1000, cleanupInterval = 3000) {
+    this.#cube = [];
     //runs its own internal gc
     setInterval(_ => this.disconnect(), disconnectInterval);
     // todo the filter is not implemented yet
@@ -109,11 +121,6 @@ export class EventLoopCube {
   }
 
   static Break = Symbol("Break");
-  #cube = []; //[...events : [...microFrames]]  //todo in a more efficient world, this would be a single flat array.
-  #I = 0;
-  #J = 0;
-  #active = false;
-  #disconnectables = new Map();
 
   get state() { return this.#cube.map(row => row.getState?.() || row.map(mf => mf.getState())); }
 
@@ -205,13 +212,7 @@ export class EventLoopCube {
     frames.length && this.#loop(frames);
   }
 
-  init() {
-    if (this.#started) return;
-    this.#started = true;
-    this.connectBranch(this.#root);
-  }
   connectPortal(portalName, portal) {
-    if (!this.#started) return;
     const frames = [];
     for (let el2 of this.#root.getElementsByTagName("*"))
       if (el2[EventLoopCube.PORTAL]?.[portalName] === false)
@@ -229,4 +230,3 @@ export class EventLoopCube {
 
 let NameCache = Object.create(null);
 setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC
-

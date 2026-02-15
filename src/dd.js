@@ -6,9 +6,7 @@ import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I } from "./4_Portals.js";
 
 DefaultActionMonkey(Event.prototype);
-const eventLoopCube = window.eventLoopCube = new EventLoopCube(document.documentElement, 1000, 3000);
 window.EventLoopCube = EventLoopCube;
-monkeyPatchAppendElements((...args) => eventLoopCube.connectBranch(...args));
 
 const PortalMap2 = NativePortalMap(PortalMap);
 document.portals = new PortalMap2();
@@ -17,10 +15,12 @@ Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals
 
 document.portals.define("i", I);
 
-document.readyState !== "loading" ?
-  eventLoopCube.init() :
-  document.addEventListener("DOMContentLoaded", _ =>
-    eventLoopCube.init());
+function init() {
+  const cube = EventLoopCube.init(window, document.documentElement);
+  monkeyPatchAppendElements((...args) => cube.connectBranch(...args));
+}
+
+document.readyState !== "loading" ? init() : document.addEventListener("DOMContentLoaded", init);
 
 // import * as wait from "../../x/wait/v1.js";
 //todo this should probably be Wait_ too
