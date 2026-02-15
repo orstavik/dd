@@ -1,3 +1,23 @@
+class MicroCallback {
+  constructor(event, cb) {
+    this.event = event;
+    this.cb = cb;
+    this.result = undefined;
+  }
+
+  async run() {
+    try {
+      if (this.cb instanceof Promise)
+        this.cb = await this.cb;
+      this.result = this.cb(this.event);
+      if (this.result instanceof Promise)
+        this.result = await this.result;
+    } catch (err) {
+      this.result = err;
+    }
+  }
+}
+
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -15,40 +35,37 @@ class MicroFrame {
     return { at: this.at, event: this.event, inputs: this.#inputs, i: this.#i, names: this.names, };
   }
 
-  run() {
+  async run() {
     for (let re = this.names[this.#i]; re !== undefined; re = this.names[this.#i]) {
       const portal = this.root.portals.getReaction(this.portalNames[this.#i]);
-      if (portal === null)
-        return this.#endError(new Error("portal is null: " + re));
-      if (portal instanceof Error)
-        return this.#endError(portal);
       if (portal instanceof Promise)
-        return portal.finally(_ => this.run());
+        await portal;
+      if (portal === null)
+        throw new Error("portal is null: " + re);
+      if (portal instanceof Error)
+        throw portal;
       if (portal.reaction === null)
-        return this.#endError(new Error("reaction is null: " + re));
+        throw new Error("reaction is null: " + re);
       try {
         const res = portal.reaction.apply(this.at, this.#inputs);
         this.#inputs.unshift(res);
-        if (res instanceof Promise)
-          return res.then(oi => this.#runSuccess(oi))
-            .catch(err => this.#endError(err))
-            .finally(_ => this.run());
-        this.#runSuccess(res);
+        if (res instanceof Promise) {
+          await res;
+          this.#inputs[0] = res;
+        }
+        this.#i = res === EventLoopCube.Break ? this.names.length : this.#i + 1;
       } catch (err) {
-        return this.#endError(err);
+        console.error(err);
+        this.#inputs.unshift(err);
+        this.#i = this.names.length;
       }
     }
   }
-
-  #endError(err) {
-    console.error(err);
-    this.#inputs.unshift(err);
-    this.#i = this.names.length;
-  }
-
-  #runSuccess(res) {
-    this.#inputs[0] = res;
-    this.#i = res === EventLoopCube.Break ? this.names.length : this.#i + 1;
+  static make(e, at) {
+    if (at instanceof Attr)
+      return new MicroFrame(e, at);
+    else if (at instanceof Function)
+      return new MicroCallback(e, at);
   }
 }
 
@@ -141,13 +158,13 @@ export class EventLoopCube {
 
   dispatch(e, at) {
     (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
-      this.#cube[this.#I].push(new MicroFrame(e, at)) :
-      this.#loop([new MicroFrame(e, at)]);
+      this.#cube[this.#I].push(MicroFrame.make(e, at)) :
+      this.#loop([MicroFrame.make(e, at)]);
   }
   dispatchBatch(e, attrs) {
     (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
-      this.#cube[this.#I].push(...attrs.map(at => new MicroFrame(e, at))) :
-      this.#loop(attrs.map(at => new MicroFrame(e, at)));
+      this.#cube[this.#I].push(...attrs.map(at => MicroFrame.make(e, at))) :
+      this.#loop(attrs.map(at => MicroFrame.make(e, at)));
   }
   disconnect() {
     for (let at of this.#disconnectables.keys())

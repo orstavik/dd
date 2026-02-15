@@ -22,6 +22,10 @@ const NonBubblingEvents = new Set(['focus', 'blur', 'load', 'unload', 'error', '
 const ComposedEvents = new Set(['click', 'auxclick', 'dblclick', 'mousedown', 'mouseup', 'focus', 'blur',
   'pointerdown', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave']);
 const PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)[._$]/;
+const EventsWithDefaultActions = new Set(['click', 'auxclick', 'dblclick', 'mousedown', 'mouseup', 'focus', 'blur',
+  'pointerdown', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'submit',
+  'reset', 'change', 'input', 'keydown', 'keypress', 'keyup', 'cut', 'copy', 'paste', 'drop', 'dragover', 'dragenter',
+  'dragleave', 'dragstart', 'dragend', 'drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drag']);
 
 function getTriggersComposedBubble(type, el) {
   let attrs, first;
@@ -58,7 +62,7 @@ function getTriggersTarget(type, el) {
         !first ? (first = at) : (attrs ??= [first]).push(at);
   return attrs ?? first;
 }
-function Trigger(eventName, bubbles, composed) {
+function Trigger(eventName, bubbles, composed, cancelable) {
   const propagationPath = (bubbles && composed) ? getTriggersComposedBubble :
     composed ? getTriggersComposedTarget :
       bubbles ? getTriggersBubble :
@@ -66,6 +70,10 @@ function Trigger(eventName, bubbles, composed) {
   return function (e) {
     e.stopImmediatePropagation();
     const atOrAttrs = propagationPath(eventName, e.currentTarget);
+    if (cancelable) {
+      if (!(atOrAttrs instanceof Array)) atOrAttrs = [atOrAttrs];
+      atOrAttrs.push(new MicroCallback(e => e.defaultAction?.()));
+    }
     atOrAttrs instanceof Array ?
       eventLoopCube.dispatchBatch(e, atOrAttrs) :
       eventLoopCube.dispatch(e, atOrAttrs);
@@ -75,16 +83,18 @@ const ListenerCache = Object.create(null);
 
 function makeDefinition(NAME) {
   let EVENT = NAME.split(/[_.]/)[0];
-  if (EVENT === "dcl") EVENT = "DOMContentLoaded";
   if (DomEvents.has(EVENT)) {
     const passive = !NAME.includes("_active") && PASSIVE.test(EVENT);
     const bubbles = !NonBubblingEvents.has(EVENT);
     const composed = ComposedEvents.has(EVENT);
     const listener = ListenerCache[NAME] ??= Trigger(EVENT, bubbles, composed);
-
+    const cancelable = !passive;
     return Object.freeze({
       onFirstConnect: function () { this.ownerElement.addEventListener(EVENT, listener, { passive }); },
-      reaction: function () { this.ownerElement.dispatchEvent(new Event(EVENT, { bubbles, composed })); }
+      reaction:
+        EVENT === "click" ? function () { this.ownerElement.click(); } :
+          EVENT === "submit" ? function () { this.ownerElement.requestSubmit(); } :
+            function () { this.ownerElement.dispatchEvent(new Event(EVENT, { bubbles, composed, cancelable })); }
     });
   }
   if (WindowOnlyEvents.has(EVENT))
@@ -92,10 +102,11 @@ function makeDefinition(NAME) {
       onFirstConnect: function () { window.addEventListener(EVENT, dispatchEvent); },
       reaction: function () { window.dispatchEvent(new Event(EVENT)); }
     });
+  if (EVENT === "dcl") EVENT = "DOMContentLoaded";
   if (DocumentOnlyEvents.has(EVENT))
     return Object.freeze({
-      onFirstConnect: function () { this.ownerElement.getRootNode().addEventListener(EVENT, dispatchEvent); },
-      reaction: function () { this.ownerElement.getRootNode().dispatchEvent(new Event(EVENT)); }
+      onFirstConnect: function () { document.addEventListener(EVENT, dispatchEvent); },
+      reaction: function () { document.dispatchEvent(new Event(EVENT)); }
     });
   return false;
 }
