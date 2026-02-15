@@ -13,10 +13,11 @@ class MicroFrame {
 
   #checkLegalTail(type) {
     const tail = this.names.slice(this.#i);
-    if (tail.includes(""))
-      throw new Error("we have a higher up ::default:action behind a promise waiting for reaction :" + type);
-    if (tail.includes("prevent"))
-      throw new Error("we have a higher up :prevent behind a promise waiting for reaction :" + type);
+    const error = tail.includes("") ? "::default:action" : tail.includes("prevent") ? ":prevent" : null;
+    if (!error) return;
+    this.event.preventDefault();
+    throw new Error(error + " is left behind an async reaction while " + type + ".\n" +
+      this.names.slice(0, this.#i).join(":") + "  <=(awaits here)  :" + this.names.slice(this.#i).join(":"));
   }
 
   getState() {
@@ -33,7 +34,7 @@ class MicroFrame {
         }
         let portal = this.root.portals.getReaction(this.portalNames[this.#i]);
         if (portal instanceof Promise) {
-          this.#checkLegalTail(re + " to load the definition.");
+          this.#checkLegalTail("loading definition");
           portal = await portal;
         }
         if (portal instanceof Error)
@@ -42,7 +43,7 @@ class MicroFrame {
           throw new Error("reaction is null: " + re);
         this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
         if (this.#inputs[0] instanceof Promise) {
-          this.#checkLegalTail(re + " to execute.");
+          this.#checkLegalTail("executing function");
           this.#inputs[0] = await this.#inputs[0];
         }
         if (this.#inputs[0] === EventLoopCube.Break)
