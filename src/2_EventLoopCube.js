@@ -11,6 +11,14 @@ class MicroFrame {
     this.#inputs = [event];
   }
 
+  #checkLegalTail(type) {
+    const tail = this.names.slice(this.#i);
+    if (tail.includes(""))
+      throw new Error("we have a higher up ::default:action behind a promise waiting for reaction :" + type);
+    if (tail.includes("prevent"))
+      throw new Error("we have a higher up :prevent behind a promise waiting for reaction :" + type);
+  }
+
   getState() {
     return { at: this.at, event: this.event, inputs: this.#inputs, i: this.#i, names: this.names, };
   }
@@ -24,15 +32,19 @@ class MicroFrame {
           break;
         }
         let portal = this.root.portals.getReaction(this.portalNames[this.#i]);
-        if (portal instanceof Promise)
+        if (portal instanceof Promise) {
+          this.#checkLegalTail(re + " to load the definition.");
           portal = await portal;
+        }
         if (portal instanceof Error)
           throw portal;
         if (portal.reaction === null)
           throw new Error("reaction is null: " + re);
         this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
-        if (this.#inputs[0] instanceof Promise)
+        if (this.#inputs[0] instanceof Promise) {
+          this.#checkLegalTail(re + " to execute.");
           this.#inputs[0] = await this.#inputs[0];
+        }
         if (this.#inputs[0] === EventLoopCube.Break)
           break;
         if (this.#inputs[0] === EventLoopCube.Void)
@@ -42,7 +54,7 @@ class MicroFrame {
       console.error(err);
       this.#inputs.unshift(err);
     }
-    return this.#inputs[0];
+    return this.result = this.#inputs[0];
   }
 
   static make(e, at) { return new MicroFrame(e, at); }
@@ -125,12 +137,8 @@ export class EventLoopCube {
     this.#active = true;
     for (; this.#I < this.#cube.length; this.#I++) {
       const row = this.#cube[this.#I];
-      let defaultAction;
       for (; this.#J < row.length; this.#J++)
-        if (row[this.#J].run?.() === EventLoopCube.DefaultAction)
-          defaultAction = row[this.#J];
-      //todo here, we can check if we have any a) :prevent or b) ::default:action that is 1) on a #J *after* the default action and 2) *after* an unresolved Promise as #input[0]
-      defaultAction?.run();
+        row[this.#J].run?.();
       this.#J = 0;
     }
     this.#active = false;
