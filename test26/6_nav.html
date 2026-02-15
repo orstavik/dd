@@ -1,4 +1,4 @@
-<div click:nav_check::nav_dispatch>
+<div click::nav popstate::nav hashchange::nav nav:log>
   <!-- ----------------
   <a href="#alice">alice</a>
   <br>
@@ -17,6 +17,41 @@
 <script type="module">
 
   import * as dd from "../src/dd.js";
+
+  const navs = new Set();
+  document.portals.define("nav", {
+    onFirstConnect: function () { navs.add(new WeakRef(this)); },
+    reaction: function (e) {
+      const defaultActionElement = e.defaultAction?.element;
+      if (!defaultActionElement)
+        return EventLoopCube.Break;
+      const href = defaultActionElement.href ?? defaultActionElement.request?.url;
+      if (!href)
+        return EventLoopCube.Break;
+      const url = new URL(href);
+      if (url.origin !== location.origin)
+        return; //here we don't EventLoopCube.Break. We see that the defaultAction is a navigation event, and so we make a choice
+      e.preventDefault();
+      const controller = this.ownerElement.getRootNode().querySelector("[nav]");
+      if (controller) {
+        const [whitelist, ...blacklist] = controller.getAttribute("nav").split(",").map(s => s.trim());
+        if (!url.pathname.startsWith(whitelist))
+          return;
+        if (blacklist.some(bl => url.pathname.startsWith(bl)))
+          return;
+      }
+      history.pushState({}, "", url);
+      const attrs = []
+      for (const nav of navs) {
+        const at = nav.deref();
+        if (at === undefined)
+          navs.delete(nav);
+        else if (at.ownerElement.isConnected)
+          attrs.push(at);
+      }
+      eventLoop.dispatchBatch(url, attrs);
+    },
+  });
 
   // document.portals.define("log", {
   //   reaction: function (e) { console.log(e.defaultPrevented); },
