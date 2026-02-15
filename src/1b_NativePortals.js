@@ -70,10 +70,6 @@ function Trigger(eventName, bubbles, composed, cancelable) {
   return function (e) {
     e.stopImmediatePropagation();
     const atOrAttrs = propagationPath(eventName, e.currentTarget);
-    if (cancelable) {
-      if (!(atOrAttrs instanceof Array)) atOrAttrs = [atOrAttrs];
-      atOrAttrs.push(new MicroCallback(e => e.defaultAction?.()));
-    }
     atOrAttrs instanceof Array ?
       eventLoopCube.dispatchBatch(e, atOrAttrs) :
       eventLoopCube.dispatch(e, atOrAttrs);

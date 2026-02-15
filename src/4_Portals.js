@@ -53,8 +53,12 @@ const Intersection = {
 const I = {
   onFirstConnect: function () { eventLoopCube.dispatch(null, this); },
 }
+const prevent = {
+  reaction: (...args) => (args.at(-1).preventDefault(), EventLoopCube.Void),
+}
 
 export {
+  prevent,
   I,
   Attr,
   Intersection,

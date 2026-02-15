@@ -1,13 +1,14 @@
 import { FormSubmitRequestFix } from "./0_FormSubmitRequestFix.js";
-import { EventDefaultAction } from "./0_EventDefaultAction.js";
+import { exposeNativeDefaultAction } from "./0_NativeDefaultActions.js";
+// import { EventDefaultAction } from "./0_EventDefaultAction.js";
 import { PortalMap } from "./1_PortalMap.js";
 import { NativePortalMap } from "./1b_NativePortals.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I } from "./4_Portals.js";
+import { I, prevent } from "./4_Portals.js";
 
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
-EventDefaultAction(Event.prototype);
+exposeNativeDefaultAction();
 window.EventLoopCube = EventLoopCube;
 
 const PortalMap2 = NativePortalMap(PortalMap);
@@ -16,6 +17,7 @@ Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals
 // Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= new PortalMap2(this); } });
 
 document.portals.define("i", I);
+document.portals.define("prevent", prevent);
 
 function init() {
   const cube = EventLoopCube.init(window, document.documentElement);

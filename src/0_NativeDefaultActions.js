@@ -38,11 +38,11 @@ const NativeDefaultActions = {
 }
 
 function getNativeDefaultAction() {
-  if (super.defaultAction || this.defaultPrevented || !(this.type in NativeDefaultActions))
-    return super.defaultAction;
+  if (this.defaultPrevented || !(this.type in NativeDefaultActions))
+    return;
   //no custom defaultAction set, no .preventDefault() called, and we have native settings for this event.
   const { matcher, actions } = NativeDefaultActions[this.type];
-  for (let el = this.composedPath()[0]; el; el = el !== this.currentTarget && el.assignedSlot ?? el.parentElement ?? el.parentNode?.host)
+  for (let el = this.composedPath()[0]; el; el = el !== this.currentTarget && (el.assignedSlot ?? el.parentElement ?? el.parentNode?.host))
     if (el.matches(matcher)) {
       const defaultAction = (actions, element) => {
         for (let m in actions)
@@ -54,6 +54,10 @@ function getNativeDefaultAction() {
       return defaultAction;
     }
 }
-
-Object.defineProperty(MouseEvent.prototype, "defaultAction", { get: getNativeDefaultAction, set: function (v) { super.defaultAction = v; } });
-Object.defineProperty(KeyboardEvent.prototype, "defaultAction", { get: getNativeDefaultAction, set: function (v) { super.defaultAction = v; } });
+export function exposeNativeDefaultAction(
+  MouseEventProto = MouseEvent.prototype,
+  // KeyboardEventProto = KeyboardEvent.prototype
+) {
+  Object.defineProperty(MouseEventProto, "defaultAction", { get: getNativeDefaultAction });
+  // Object.defineProperty(KeyboardEventProto, "defaultAction", { get: getNativeDefaultAction, set: function (v) { super.defaultAction = v; } });
+}

@@ -1,23 +1,3 @@
-class MicroCallback {
-  constructor(event, cb) {
-    this.event = event;
-    this.cb = cb;
-    this.result = undefined;
-  }
-
-  async run() {
-    try {
-      if (this.cb instanceof Promise)
-        this.cb = await this.cb;
-      this.result = this.cb(this.event);
-      if (this.result instanceof Promise)
-        this.result = await this.result;
-    } catch (err) {
-      this.result = err;
-    }
-  }
-}
-
 class MicroFrame {
   #i = 1;
   #inputs;
@@ -36,37 +16,36 @@ class MicroFrame {
   }
 
   async run() {
-    for (let re = this.names[this.#i]; re !== undefined; re = this.names[this.#i]) {
-      const portal = this.root.portals.getReaction(this.portalNames[this.#i]);
-      if (portal instanceof Promise)
-        await portal;
-      if (portal === null)
-        throw new Error("portal is null: " + re);
-      if (portal instanceof Error)
-        throw portal;
-      if (portal.reaction === null)
-        throw new Error("reaction is null: " + re);
-      try {
-        const res = portal.reaction.apply(this.at, this.#inputs);
-        this.#inputs.unshift(res);
-        if (res instanceof Promise) {
-          await res;
-          this.#inputs[0] = res;
+    try {
+      for (let re = this.names[this.#i]; re !== undefined; re = this.names[++this.#i]) {
+        if (re === "") {
+          this.#inputs.unshift(EventLoopCube.DefaultAction);
+          this.#i++;
+          break;
         }
-        this.#i = res === EventLoopCube.Break ? this.names.length : this.#i + 1;
-      } catch (err) {
-        console.error(err);
-        this.#inputs.unshift(err);
-        this.#i = this.names.length;
+        let portal = this.root.portals.getReaction(this.portalNames[this.#i]);
+        if (portal instanceof Promise)
+          portal = await portal;
+        if (portal instanceof Error)
+          throw portal;
+        if (portal.reaction === null)
+          throw new Error("reaction is null: " + re);
+        this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
+        if (this.#inputs[0] instanceof Promise)
+          this.#inputs[0] = await this.#inputs[0];
+        if (this.#inputs[0] === EventLoopCube.Break)
+          break;
+        if (this.#inputs[0] === EventLoopCube.Void)
+          this.#inputs.shift();
       }
+    } catch (err) {
+      console.error(err);
+      this.#inputs.unshift(err);
     }
+    return this.#inputs[0];
   }
-  static make(e, at) {
-    if (at instanceof Attr)
-      return new MicroFrame(e, at);
-    else if (at instanceof Function)
-      return new MicroCallback(e, at);
-  }
+
+  static make(e, at) { return new MicroFrame(e, at); }
 }
 
 class ConnectFrame {
@@ -137,8 +116,6 @@ export class EventLoopCube {
     //q setInterval(_ => this.cleanup(), cleanupInterval);
   }
 
-  static Break = Symbol("Break");
-
   get state() { return this.#cube.map(row => row.getState?.() || row.map(mf => mf.getState())); }
 
   #loop(newRow) {
@@ -148,8 +125,12 @@ export class EventLoopCube {
     this.#active = true;
     for (; this.#I < this.#cube.length; this.#I++) {
       const row = this.#cube[this.#I];
+      let defaultAction;
       for (; this.#J < row.length; this.#J++)
-        row[this.#J].run?.();
+        if (row[this.#J].run?.() === EventLoopCube.DefaultAction)
+          defaultAction = row[this.#J];
+      //todo here, we can check if we have any a) :prevent or b) ::default:action that is 1) on a #J *after* the default action and 2) *after* an unresolved Promise as #input[0]
+      defaultAction?.run();
       this.#J = 0;
     }
     this.#active = false;
@@ -239,6 +220,9 @@ export class EventLoopCube {
               frames.push(new ConnectFrame(portal, at));
     frames.length && this.#loop(frames);
   }
+  static Break = Symbol("Break");
+  static Void = Symbol("void");
+  static DefaultAction = Symbol("DefaultAction");
   static PORTAL = Symbol("portals");
   static MOVEABLES = Symbol("moveables");
   static RECONNECTABLES = Symbol("reconnectables");
