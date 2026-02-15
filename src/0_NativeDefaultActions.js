@@ -38,7 +38,7 @@ const NativeDefaultActions = {
 }
 
 function getNativeDefaultAction() {
-  if (this.defaultPrevented || !(this.type in NativeDefaultActions))
+  if (!this.isTrusted || this.defaultPrevented || !(this.type in NativeDefaultActions))
     return;
   //no custom defaultAction set, no .preventDefault() called, and we have native settings for this event.
   const { matcher, actions } = NativeDefaultActions[this.type];
