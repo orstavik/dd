@@ -22,6 +22,8 @@ class MicroFrame {
     throw new Error("A defaultAction is left behind an async reaction while " + type + ".\n" + errorNames.join(":"));
   }
 
+  get result() { return this.#inputs[0]; }
+
   getState() {
     return { at: this.at, event: this.event, inputs: this.#inputs, i: this.#i, names: this.names, };
   }
@@ -57,7 +59,7 @@ class MicroFrame {
       console.error(err);
       this.#inputs.unshift(err);
     }
-    return this.result = this.#inputs[0];
+    return this.#inputs[0];
   }
 
   static make(e, at) { return new MicroFrame(e, at); }
@@ -142,6 +144,19 @@ export class EventLoopCube {
       const row = this.#cube[this.#I];
       for (; this.#J < row.length; this.#J++)
         row[this.#J].run?.();
+      //default action handling start
+      if (row[0].event?.cancelable)
+        for (let j = this.#J - 1; j >= 0; j--)                 //when we run the default actions in reverse, 
+          if (row[j].result === EventLoopCube.DefaultAction) { //and find the top defaultAction
+            const defActRes = row[j].run();
+            if (defActRes === EventLoopCube.Break)             //and that defaultAction returns EventLoopCube.Break (ie. cancels)
+              continue;                                        //then we try the next defaultAction.
+            defActRes.then?.(res => {
+              if (res === EventLoopCube.Break)
+                throw new Error("defaultActions should not return EventLoopCube.Break asynchronously: " + row[j].at.name);
+            });
+          }
+      //default action handling end
       this.#J = 0;
     }
     this.#active = false;
