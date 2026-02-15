@@ -1,4 +1,8 @@
-export function FormSubmitRequestFix(HTMLFormElementProto = HTMLFormElement.prototype) {
+export function FormSubmitRequestFix(
+  HTMLFormElementProto = HTMLFormElement.prototype,
+  HTMLButtonElementProto = HTMLButtonElement.prototype,
+  HTMLInputElementProto = HTMLInputElement.prototype
+) {
   //fix 1: adding optional submitter to form.submit(submitter)
   const submitOG = HTMLFormElementProto.submit;
   Object.defineProperty(HTMLFormElementProto, "submit", {
@@ -19,7 +23,7 @@ export function FormSubmitRequestFix(HTMLFormElementProto = HTMLFormElement.prot
     }
   });
 
-  //fix 2: adding form.request, input.request, button.request.
+  //fix 2: adding form.request
   Object.defineProperty(HTMLFormElementProto, "request", {
     value: function () {
       if (this.method === "dialog")
@@ -39,6 +43,8 @@ export function FormSubmitRequestFix(HTMLFormElementProto = HTMLFormElement.prot
       throw new Error("Cannot get the request for the given method : enctype: " + method + " : " + enctype);
     },
   });
+
+  //fix 3: adding input.request, button.request.
   function submitterRequest() {
     const request = (this.type === "submit" || this.type === "image") && this.form?.request;
     if (!request) return;
@@ -49,5 +55,5 @@ export function FormSubmitRequestFix(HTMLFormElementProto = HTMLFormElement.prot
   }
   Object.defineProperty(HTMLButtonElementProto, "request", { value: submitterRequest });
   Object.defineProperty(HTMLInputElementProto, "request", { value: submitterRequest });
-  //note 3: for <a href> and <area href> we don't need .request, as .href already exists.
 }
+//note: for <a href> and <area href> don't need .request, as .href already exists.
