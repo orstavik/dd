@@ -1,8 +1,3 @@
-const DocumentOnlyEvents = new Set(['DOMContentLoaded', 'readystatechange', 'pointerlockchange', 'pointerlockerror', 'freeze', 'prerenderingchange',
-  'resume', 'visibilitychange']);
-const WindowOnlyEvents = new Set(['appinstalled', 'beforeinstallprompt', 'afterprint', 'beforeprint', 'beforeunload', 'hashchange', 'languagechange',
-  'message', 'messageerror', 'offline', 'online', 'pagehide', 'pageshow', 'popstate', 'rejectionhandled', 'storage', 'unhandledrejection', 'unload',
-  'devicemotion', 'deviceorientation', 'deviceorientationabsolute', 'pageswap', 'pagereveal', 'YouTubeIframeAPIReady']);
 const DomEvents = new Set(['touchstart', 'touchmove', 'touchend', 'touchcancel', 'beforexrselect', 'abort', 'beforeinput', 'beforematch', 'beforetoggle',
   'blur', 'cancel', 'canplay', 'canplaythrough', 'change', 'click', 'close', 'contentvisibilityautostatechange', 'contextlost', 'contextmenu',
   'contextrestored', 'cuechange', 'dblclick', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'durationchange',
@@ -15,17 +10,13 @@ const DomEvents = new Set(['touchstart', 'touchmove', 'touchend', 'touchcancel',
   'animationiteration', 'animationstart', 'transitionrun', 'transitionstart', 'transitionend', 'transitioncancel', 'copy', 'cut', 'paste', 'command',
   'scrollend', 'scrollsnapchange', 'scrollsnapchanging', 'beforecopy', 'beforecut', 'beforepaste', 'search', 'fullscreenchange', 'fullscreenerror',
   'webkitfullscreenchange', 'webkitfullscreenerror']);
-const ReservedNames = new RegExp("^(" + ["dcl", ...DocumentOnlyEvents, ...WindowOnlyEvents, ...DomEvents].join("|") + ")[._$]");
+const ReservedNames = new RegExp("^(" + [...DomEvents].join("|") + ")[._$]");
 
 const NonBubblingEvents = new Set(['focus', 'blur', 'load', 'unload', 'error', 'abort', 'mouseenter', 'mouseleave',
   'scroll', 'scrollend', 'scrollsnapchange', 'scrollsnapchanging']);
 const ComposedEvents = new Set(['click', 'auxclick', 'dblclick', 'mousedown', 'mouseup', 'focus', 'blur',
   'pointerdown', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave']);
 const PASSIVE = /^(wheel|mousewheel|touchstart|touchmove)[._$]/;
-const EventsWithDefaultActions = new Set(['click', 'auxclick', 'dblclick', 'mousedown', 'mouseup', 'focus', 'blur',
-  'pointerdown', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'submit',
-  'reset', 'change', 'input', 'keydown', 'keypress', 'keyup', 'cut', 'copy', 'paste', 'drop', 'dragover', 'dragenter',
-  'dragleave', 'dragstart', 'dragend', 'drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drag']);
 
 function getTriggersComposedBubble(type, el) {
   let attrs, first;
@@ -93,17 +84,6 @@ function makeDefinition(NAME) {
             function () { this.ownerElement.dispatchEvent(new Event(EVENT, { bubbles, composed, cancelable })); }
     });
   }
-  // if (WindowOnlyEvents.has(EVENT))
-  //   return Object.freeze({
-  //     onFirstConnect: function () { connectGlobalListener(EVENT, window, this); },
-  //     reaction: function () { window.dispatchEvent(new Event(EVENT)); }
-  //   });
-  // if (EVENT === "dcl") EVENT = "DOMContentLoaded";
-  // if (DocumentOnlyEvents.has(EVENT))
-  //   return Object.freeze({
-  //     onFirstConnect: function () { connectGlobalListener(EVENT, document, this); },
-  //     reaction: function () { document.dispatchEvent(new Event(EVENT)); }
-  //   });
   return false;
 }
 
@@ -122,24 +102,4 @@ export function NativePortalMap(PortalMap) {
       return (CACHE[name] ??= makeDefinition(name)) || super.get(name);
     }
   }
-}
-
-const ATTRS = {};
-function globalListener(e) {
-  const attrs = ATTRS[e.type];
-  let res;
-  for (const wr of attrs) {
-    const at = wr.deref();
-    at ? (res ??= []).push(at) : attrs.delete(wr);
-  }
-  if (res)
-    return eventLoopCube.dispatchBatch(e, res);
-  //all the firstConnect attrs have been gc'ed, we can remove the listener.
-  delete ATTRS[e.type];
-  e.currentTarget.removeEventListener(e.type, globalListener);
-}
-function connectGlobalListener(eventName, winOrDoc, attr) {
-  const attrs = ATTRS[eventName] ??= new Set();
-  attrs.add(new WeakRef(attr));
-  winOrDoc.addEventListener(eventName, globalListener);
 }
