@@ -174,25 +174,6 @@ class DoubleDotsError extends Error {
   }
 }
 
-class ThisArrowFunctionError extends DoubleDotsError {
-  constructor(Func) {
-    super("arrow function with `this`.");
-  }
-  static check(Definition) {
-    // if(Definition.hasOwnProperty('prototype'))  //better alternative than a
-    //   return false;
-    let txt = Definition.toString();
-    if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))  //alternative a
-      return;
-    txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, ''); //remove comments
-    //ATT!! `${"`"}this` only works when "" is removed before ``
-    txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '');   //remove "'-strings
-    txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, '');   //remove `strings
-    if (/\bthis\b/.test(txt))                      //the word this
-      throw new ThisArrowFunctionError(Definition);
-  }
-}
-
 function* walkAttributes(root) {
   if (root.attributes)
     yield* Array.from(root.attributes);
@@ -209,7 +190,6 @@ window.DoubleDots = {
   monkeyPatch,
 
   DoubleDotsError,
-  ThisArrowFunctionError,
   DeprecationError: class DeprecationError extends DoubleDotsError { },
   MissingReaction: class MissingReaction extends DoubleDotsError { },
   DisconnectedError: class DisconnectedError extends DoubleDotsError { },

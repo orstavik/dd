@@ -1,0 +1,31 @@
+<div click:log="was it a link?" style="border: 1px solid black;">
+  ----------------
+  <a href="#alice">alice</a>
+  <br>
+  <a href="#bob">bob</a>
+  ----------------
+  <br>
+  <div is:click>click on startup</div>
+  <br>
+  ----------------
+  <details>
+    <summary i:click>details</summary>
+    <p>paragraph</p>
+  </details>
+</div>
+<script type="module">
+
+  import * as dd from "../src/dd.js";
+
+  document.portals.define("log", {
+    reaction: function (e) { console.log(e.defaultPrevented); },
+  });
+
+  // document.portals.define("click", {
+  //   onFirstConnect: function () {
+  //     this.ownerElement.addEventListener("click", e => eventLoopCube.dispatch(e, this));
+  //   },
+  //   reaction: function () { this.ownerElement.click(); },
+  // });
+
+</script>
