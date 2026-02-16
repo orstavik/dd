@@ -1,16 +1,18 @@
 const Resolver = Symbol("Resolver");
 const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
 
-function checkArrowThis(func) {
+function checkFunction(func) {
+  if (typeof func !== "function")
+    return `not a function, but a ` + typeof func;
   let txt = func.toString();
   if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))  //alternative a
-    return false;
+    return;
   txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, ''); //remove comments
   //ATT!! `${""}this` only works when "" is removed before ``
   txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '');   //remove "'-strings
   txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, '');   //remove `strings
   if (/\bthis\b/.test(txt))                      //the word this
-    return true;
+    return 'arrow function with "this"';
 }
 
 function verifyPortalDefinition(Portal) {
@@ -23,14 +25,10 @@ function verifyPortalDefinition(Portal) {
     throw `missing .onFirstConnect, but defining either onMove, onReConnect, or .onDisconnect.`;
   if (onDisconnect && !onReConnect)
     throw `missing .onReConnect, but defining .onDisconnect.`;
-  Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
-  for (let k in Portal)
-    if (Portal[k]) {
-      if (typeof Portal[k] !== "function")
-        throw `.${k} is not a function, but a ` + typeof Portal[k];
-      if (checkArrowThis(Portal[k]))
-        throw `.${k} is an arrow function with "this".`;
-    }
+  Portal = Object.freeze({ onFirstConnect, onDisconnect, onMove, onReConnect, reaction });
+  for (let [k, v] of Object.entries(Portal))
+    if (v && (v = checkFunction(v)))
+      throw `.${k} is ${v}`;
   return Portal;
 }
 
@@ -53,10 +51,8 @@ export class PortalMap {
     if (Portal instanceof Promise)
       return Portal.err(e => e).then(P => this.#definePortal(name, P));
     try {
-      Portal = verifyPortalDefinition(Portal);
-      Object.values(Portal).filter(o => typeof o === "function").forEach(checkArrowThis);
-      this.#portals[name] = Portal;
-      window.eventLoopCube?.connectPortal(name, Portal);
+      this.#portals[name] = verifyPortalDefinition(Portal);
+      window.eventLoopCube?.connectPortal(name, this.#portals[name]);
     } catch (err) {
       this.#portals[name] = new TypeError(`Portal '${name}': ${err.message}`);
     } finally {
