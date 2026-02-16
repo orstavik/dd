@@ -15,7 +15,7 @@ function checkArrowThis(func) {
     throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
 }
 
-function verifyPortalDefinition(name, Portal) {
+function verifyPortalDefinition(Portal) {
   if (!(Portal instanceof Object))
     throw new TypeError(`Portal Definition is not an object.`);
   let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
@@ -25,7 +25,7 @@ function verifyPortalDefinition(name, Portal) {
     throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
   if (onDisconnect && !onReConnect)
     throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
-  return { name, onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+  return { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
 }
 
 export class PortalMap {
@@ -43,13 +43,11 @@ export class PortalMap {
     this.#definePortal(name, Portal);
   }
 
-  async #definePortal(name, Portal) {
+  #definePortal(name, Portal) {
+    if (Portal instanceof Promise)
+      return Portal.err(e => e).then(P => this.#definePortal(name, P));
     try {
-      if (Portal instanceof Promise)
-        Portal = await Portal;
-      Portal = verifyPortalDefinition(name, Portal);
-      const promises = Object.values(Portal).filter(o => o instanceof Promise);
-      if (promises.length) await Promise.all(promises);
+      Portal = verifyPortalDefinition(Portal);
       Object.values(Portal).filter(o => typeof o === "function").forEach(checkArrowThis);
       this.#portals[name] = Portal;
       window.eventLoopCube?.connectPortal(name, Portal);
