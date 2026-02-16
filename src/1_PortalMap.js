@@ -32,12 +32,14 @@ export class PortalMap {
 
   #portals = Object.create(null);
   #portalRequests = Object.create(null);
+  #portalUnresolved = Object.create(null);
 
   define(name, Portal) {
     if (!name.match(/^[a-z][a-z0-9]*$/))
       throw new SyntaxError(`Illegal portal name: '${name}'.`);
-    if (name in this.#portals && !this.#portals[name][Resolver])
+    if (name in this.#portalUnresolved)
       throw new ReferenceError(`Trying to define portal twice: ${name}.`);
+    this.#portalUnresolved[name] = Portal;
     this.#definePortal(name, Portal);
   }
 
