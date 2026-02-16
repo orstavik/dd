@@ -1,3 +1,47 @@
+export class WeakDictionaryOfSets {
+  #dict = Object.create(null);
+  #onEmpties = Object.create(null);
+  #gcInstance;
+  #gcInterval;
+  constructor(gc = 10_000) { this.#gcInterval = gc; }
+  put(name, value, onEmptyCb) {
+    const set = this.#dict[name] ??= new Set();
+    set.add(new WeakRef(value));
+    this.#onEmpties[name] = onEmptyCb;
+    this.#gcInstance ||= this.#gc();
+  }
+  get(name) {
+    if (!this.#dict[name])
+      return;
+    const set = this.#dict[name];
+    let res;
+    for (const wr of set) {
+      const v = wr.deref();
+      if (!v) set.delete(wr);
+      else if (res) res.push(v);
+      else res = [v];
+    }
+    return res;
+  }
+  #gc() {
+    this.#gcInstance = setInterval(() => {
+      for (const n in this.#dict) {
+        const set = this.#dict[n];
+        for (const wr of set)
+          if (!wr.deref())
+            set.delete(wr);
+        if (set.size === 0) {
+          this.#onEmpties[n]?.();
+          delete this.#dict[n];
+          delete this.#onEmpties[n];
+        }
+      }
+      if (!Object.keys(this.#dict).length)
+        this.#gcInstance = clearInterval(this.#gcInstance);
+    }, this.#gcInterval);
+  }
+}
+
 const Resolver = Symbol("Resolver");
 const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
 

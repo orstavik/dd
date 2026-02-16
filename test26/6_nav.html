@@ -21,61 +21,8 @@
   </details>
 </div>
 <script type="module">
-
   import * as dd from "../src/dd.js";
-
-  const navs = new Set();
-  function dispatchNav() {
-    let attrs;
-    for (const nav of navs) {
-      const at = nav.deref();
-      if (!at) navs.delete(nav);
-      else if (at.ownerElement.isConnected) (attrs ??= []).push(at);
-    }
-    attrs && eventLoopCube.dispatchBatch(location, attrs);
-  }
-
-  document.portals.define("nav", {
-    onFirstConnect: function () { navs.add(new WeakRef(this)); },
-    reaction: function (...args) {
-      const e = args.at(-1);
-      if (!e.eventPhase)
-        return;
-      if (e.type === "popstate")
-        return dispatchNav("nav");
-      const defaultActionElement = e.defaultAction?.element;
-      if (!defaultActionElement)
-        return EventLoopCube.Cancel;
-      const href = defaultActionElement.href ?? defaultActionElement.request?.url;
-      if (!href)
-        return EventLoopCube.Cancel;
-      //We have a navigation event, that is meant for :nav:. After this point we commit, and we no longer EventLoopCube.Cancel.
-      const url = new URL(href);
-      if (url.origin !== location.origin)
-        return;
-      const controller = this.ownerElement.getRootNode().querySelector("[data-nav]");
-      if (controller) {
-        const [whitelist, ...blacklist] = controller.getAttribute("data-nav").split(" ").map(s => s.trim());
-        if (!url.pathname.startsWith(whitelist))
-          return;
-        if (blacklist.some(bl => url.pathname.startsWith(bl)))
-          return;
-      }
-      e.preventDefault();
-      history.pushState({}, "", url);
-      dispatchNav("nav");
-    },
-  });
-
   document.portals.define("log", {
     reaction: function (e) { console.log(e); },
   });
-
-  // document.portals.define("click", {
-  //   onFirstConnect: function () {
-  //     this.ownerElement.addEventListener("click", e => eventLoopCube.dispatch(e, this));
-  //   },
-  //   reaction: function () { this.ownerElement.click(); },
-  // });
-
 </script>
