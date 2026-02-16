@@ -193,6 +193,8 @@ export class EventLoopCube {
     const portalMap = els[0]?.ownerDocument.portals;
     const frames = [];
     for (let top of els) {
+      if (!(top instanceof Element) || (!top.hasAttributes() && !top.children.length))
+        continue;
       const task = !top[EventLoopCube.PORTAL] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
       for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
         if (task === "doFirstConnect") {
