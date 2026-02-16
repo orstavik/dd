@@ -93,17 +93,17 @@ function makeDefinition(NAME) {
             function () { this.ownerElement.dispatchEvent(new Event(EVENT, { bubbles, composed, cancelable })); }
     });
   }
-  if (WindowOnlyEvents.has(EVENT))
-    return Object.freeze({
-      onFirstConnect: function () { connectGlobalListener(EVENT, window, this); },
-      reaction: function () { window.dispatchEvent(new Event(EVENT)); }
-    });
-  if (EVENT === "dcl") EVENT = "DOMContentLoaded";
-  if (DocumentOnlyEvents.has(EVENT))
-    return Object.freeze({
-      onFirstConnect: function () { connectGlobalListener(EVENT, document, this); },
-      reaction: function () { document.dispatchEvent(new Event(EVENT)); }
-    });
+  // if (WindowOnlyEvents.has(EVENT))
+  //   return Object.freeze({
+  //     onFirstConnect: function () { connectGlobalListener(EVENT, window, this); },
+  //     reaction: function () { window.dispatchEvent(new Event(EVENT)); }
+  //   });
+  // if (EVENT === "dcl") EVENT = "DOMContentLoaded";
+  // if (DocumentOnlyEvents.has(EVENT))
+  //   return Object.freeze({
+  //     onFirstConnect: function () { connectGlobalListener(EVENT, document, this); },
+  //     reaction: function () { document.dispatchEvent(new Event(EVENT)); }
+  //   });
   return false;
 }
 

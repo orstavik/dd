@@ -63,13 +63,14 @@ const DocumentOnlyEvents =
   ['readystatechange', 'pointerlockchange', 'pointerlockerror', 'freeze', 'prerenderingchange', 'resume', 'visibilitychange'];
 const WindowOnlyEvents = ['appinstalled', 'beforeinstallprompt', 'afterprint', 'beforeprint', 'beforeunload', 'hashchange', 'languagechange',
   'message', 'messageerror', 'offline', 'online', 'pagehide', 'pageshow', 'popstate', 'rejectionhandled', 'storage', 'unhandledrejection', 'unload',
-  'devicemotion', 'deviceorientation', 'deviceorientationabsolute', 'pageswap', 'pagereveal', 'YouTubeIframeAPIReady'];
+  'devicemotion', 'deviceorientation', 'deviceorientationabsolute', 'pageswap', 'pagereveal'];
 
 const Portals = Object.create(null);
 Portals.dcl = Portal("DOMContentLoaded", document);
-for (let type in DocumentOnlyEvents)
+Portals.youtubeiframeapiready = Portal("YouTubeIframeAPIReady", window);
+for (let type of DocumentOnlyEvents)
   Portals[type] = Portal(type, document);
-for (let type in WindowOnlyEvents)
+for (let type of WindowOnlyEvents)
   Portals[type] = Portal(type, window);
 
 export { Portals };
