@@ -6,7 +6,7 @@ import { Portals as WindowDocumentEvents } from "./1c_WindowDocumentEvents.js";
 import { Portals as DomEvents } from "./1b_DomEvents.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I, prevent, Nav } from "./4_Portals.js";
+import { I, prevent, Nav, log } from "./4_Portals.js";
 
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
 exposeNativeDefaultAction();
@@ -23,6 +23,7 @@ for (let [k, v] of Object.entries(DomEvents))
 document.portals.define("i", I);
 document.portals.define("prevent", prevent);
 document.portals.define("nav", Nav);
+document.portals.define("log", log);
 
 function init() {
   const cube = EventLoopCube.init(window, document.documentElement);

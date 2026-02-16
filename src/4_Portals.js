@@ -99,6 +99,10 @@ const Nav = {
     dispatchNav();
   },
 };
+
+const log = {
+  reaction: function (...args) { console.log(this, ...args); },
+}
 export {
   prevent,
   I,
@@ -106,4 +110,5 @@ export {
   Intersection,
   Resize,
   Nav,
+  log,
 };
