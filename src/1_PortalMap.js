@@ -2,30 +2,36 @@ const Resolver = Symbol("Resolver");
 const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
 
 function checkArrowThis(func) {
-  if (!(typeof func === "function"))
-    throw new ReferenceError(`.reaction is not a function: '${func}'`);
   let txt = func.toString();
   if (!/^(async\s+|)(\(|[^([]+=)/.test(txt))  //alternative a
-    return;
+    return false;
   txt = txt.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, ''); //remove comments
   //ATT!! `${""}this` only works when "" is removed before ``
   txt = txt.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '');   //remove "'-strings
   txt = txt.replace(/(`)(?:(?=(\\?))\2.)*?\1/g, '');   //remove `strings
   if (/\bthis\b/.test(txt))                      //the word this
-    throw new SyntaxError(`Arrow function reaction contains "this": ${func}`);
+    return true;
 }
 
 function verifyPortalDefinition(Portal) {
   if (!(Portal instanceof Object))
-    throw new TypeError(`Portal Definition is not an object.`);
+    throw `not an object, but a ` + typeof Portal;
   let { onFirstConnect, onReConnect, onMove, onDisconnect, reaction } = Portal;
   if (!onFirstConnect && !reaction)
-    throw new TypeError(`Portal Definition must have either a .onFirstConnect or .reaction property.`);
+    throw `missing both .onFirstConnect and .reaction`;
   if (!onFirstConnect && (onDisconnect || onReConnect || onMove))
-    throw new TypeError(`Portal Definition must have .onFirstConnect if it defines onMove, onReConnect, or .onDisconnect.`);
+    throw `missing .onFirstConnect, but defining either onMove, onReConnect, or .onDisconnect.`;
   if (onDisconnect && !onReConnect)
-    throw new TypeError(`Portal Definition must have .onReConnect if it defines .onDisconnect.`);
-  return { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+    throw `missing .onReConnect, but defining .onDisconnect.`;
+  Portal = { onFirstConnect, onDisconnect, onMove, onReConnect, reaction };
+  for (let k in Portal)
+    if (Portal[k]) {
+      if (typeof Portal[k] !== "function")
+        throw `.${k} is not a function, but a ` + typeof Portal[k];
+      if (checkArrowThis(Portal[k]))
+        throw `.${k} is an arrow function with "this".`;
+    }
+  return Portal;
 }
 
 export class PortalMap {
@@ -52,7 +58,7 @@ export class PortalMap {
       this.#portals[name] = Portal;
       window.eventLoopCube?.connectPortal(name, Portal);
     } catch (err) {
-      this.#portals[name] = new TypeError(`Error defining portal '${name}': ${err.message}`);
+      this.#portals[name] = new TypeError(`Portal '${name}': ${err.message}`);
     } finally {
       this.#portalRequests[name]?.[Resolver](this.#portals[name]);
       delete this.#portalRequests[name];
