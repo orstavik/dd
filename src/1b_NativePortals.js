@@ -95,13 +95,13 @@ function makeDefinition(NAME) {
   }
   if (WindowOnlyEvents.has(EVENT))
     return Object.freeze({
-      onFirstConnect: function () { window.addEventListener(EVENT, dispatchEvent); },
+      onFirstConnect: function () { connectGlobalListener(EVENT, window, this); },
       reaction: function () { window.dispatchEvent(new Event(EVENT)); }
     });
   if (EVENT === "dcl") EVENT = "DOMContentLoaded";
   if (DocumentOnlyEvents.has(EVENT))
     return Object.freeze({
-      onFirstConnect: function () { document.addEventListener(EVENT, dispatchEvent); },
+      onFirstConnect: function () { connectGlobalListener(EVENT, document, this); },
       reaction: function () { document.dispatchEvent(new Event(EVENT)); }
     });
   return false;
@@ -122,4 +122,24 @@ export function NativePortalMap(PortalMap) {
       return (CACHE[name] ??= makeDefinition(name)) || super.get(name);
     }
   }
+}
+
+const ATTRS = {};
+function globalListener(e) {
+  const attrs = ATTRS[e.type];
+  let res;
+  for (const wr of attrs) {
+    const at = wr.deref();
+    at ? (res ??= []).push(at) : attrs.delete(wr);
+  }
+  if (res)
+    return eventLoopCube.dispatchBatch(e, res);
+  //all the firstConnect attrs have been gc'ed, we can remove the listener.
+  delete ATTRS[e.type];
+  e.currentTarget.removeEventListener(e.type, globalListener);
+}
+function connectGlobalListener(eventName, winOrDoc, attr) {
+  const attrs = ATTRS[eventName] ??= new Set();
+  attrs.add(new WeakRef(attr));
+  winOrDoc.addEventListener(eventName, globalListener);
 }

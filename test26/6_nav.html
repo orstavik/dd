@@ -5,9 +5,11 @@
   nav:log
   data-nav=" /blueberry">
   ----------------
-  <a href="#alice">alice</a>
+  <a href="/blueberry/pai">/blueberry/pai</a>
   <br>
-  <a href="#bob">bob</a>
+  <a href="bob/blueberry/banana">bob/blueberry/banana</a>
+  <br>
+  <a href="?something">?something</a>
   ----------------
   <br>
   <div is:click>click on startup</div>
@@ -23,12 +25,24 @@
   import * as dd from "../src/dd.js";
 
   const navs = new Set();
+  function dispatchNav() {
+    let attrs;
+    for (const nav of navs) {
+      const at = nav.deref();
+      if (!at) navs.delete(nav);
+      else if (at.ownerElement.isConnected) (attrs ??= []).push(at);
+    }
+    attrs && eventLoopCube.dispatchBatch(location, attrs);
+  }
+
   document.portals.define("nav", {
     onFirstConnect: function () { navs.add(new WeakRef(this)); },
     reaction: function (...args) {
       const e = args.at(-1);
       if (!e.eventPhase)
         return;
+      if (e.type === "popstate")
+        return dispatchNav("nav");
       const defaultActionElement = e.defaultAction?.element;
       if (!defaultActionElement)
         return EventLoopCube.Cancel;
@@ -49,15 +63,7 @@
       }
       e.preventDefault();
       history.pushState({}, "", url);
-      const attrs = []
-      for (const nav of navs) {
-        const at = nav.deref();
-        if (at === undefined)
-          navs.delete(nav);
-        else if (at.ownerElement.isConnected)
-          attrs.push(at);
-      }
-      attrs.length && eventLoopCube.dispatchBatch(url, attrs);
+      dispatchNav("nav");
     },
   });
 
