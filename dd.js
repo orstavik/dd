@@ -1,4 +1,14 @@
 (() => {
+  // src/0_UrlLocationSegments.js
+  function segments() {
+    return this.pathname.split("/").slice(1);
+  }
+  function patchSegments(...protos) {
+    for (let proto of protos)
+      if (proto)
+        Object.defineProperty(proto, "segments", { get: segments, configurable: true });
+  }
+
   // src/0_FormSubmitRequestFix.js
   function FormSubmitRequestFix(HTMLFormElementProto = HTMLFormElement.prototype, HTMLButtonElementProto = HTMLButtonElement.prototype, HTMLInputElementProto = HTMLInputElement.prototype) {
     const submitOG = HTMLFormElementProto.submit;
@@ -654,6 +664,8 @@
       const portalMap = els[0]?.ownerDocument.portals;
       const frames = [];
       for (let top of els) {
+        if (!(top instanceof Element) || !top.hasAttributes() && !top.children.length)
+          continue;
         const task = !top[_EventLoopCube.PORTAL] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
         for (let el = top, subs = top.getElementsByTagName("*"), i = 0; el; el = subs[i++]) {
           if (task === "doFirstConnect") {
@@ -885,6 +897,7 @@
   };
 
   // src/dd.js
+  patchSegments(URL.prototype, globalThis.Location?.prototype);
   FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
   exposeNativeDefaultAction();
   window.EventLoopCube = EventLoopCube2;
