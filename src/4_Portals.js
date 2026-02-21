@@ -88,9 +88,7 @@ const Nav = {
       return;
     const controller = this.ownerElement.getRootNode().querySelector("[data-nav]");
     if (controller) {
-      const [whitelist, ...blacklist] = controller.getAttribute("data-nav").split(" ").map(s => s.trim());
-      if (!url.pathname.startsWith(whitelist))
-        return;
+      const blacklist = controller.getAttribute("data-nav").split(" ").map(s => s.trim());
       if (blacklist.some(bl => url.pathname.startsWith(bl)))
         return;
     }
