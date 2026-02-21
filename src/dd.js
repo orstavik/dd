@@ -1,3 +1,4 @@
+import { patchSegments } from "./0_UrlLocationSegments.js";
 import { FormSubmitRequestFix } from "./0_FormSubmitRequestFix.js";
 import { exposeNativeDefaultAction } from "./0_NativeDefaultActions.js";
 // import { EventDefaultAction } from "./0_EventDefaultAction.js";
@@ -8,6 +9,7 @@ import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import { I, prevent, Nav, log } from "./4_Portals.js";
 
+patchSegments(URL.prototype, globalThis.Location?.prototype);
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
 exposeNativeDefaultAction();
 window.EventLoopCube = EventLoopCube;
