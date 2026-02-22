@@ -879,9 +879,7 @@
         return;
       const controller = this.ownerElement.getRootNode().querySelector("[data-nav]");
       if (controller) {
-        const [whitelist, ...blacklist] = controller.getAttribute("data-nav").split(" ").map((s) => s.trim());
-        if (!url.pathname.startsWith(whitelist))
-          return;
+        const blacklist = controller.getAttribute("data-nav").split(" ").map((s) => s.trim());
         if (blacklist.some((bl) => url.pathname.startsWith(bl)))
           return;
       }
@@ -903,14 +901,16 @@
   window.EventLoopCube = EventLoopCube2;
   document.portals = new PortalMap();
   Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
-  for (let [k, v] of Object.entries(Portals))
+  var portals = {
+    ...Portals,
+    ...Portals2,
+    i: I,
+    prevent,
+    nav: Nav,
+    log
+  };
+  for (let [k, v] of Object.entries(portals))
     document.portals.define(k, v);
-  for (let [k, v] of Object.entries(Portals2))
-    document.portals.define(k, v);
-  document.portals.define("i", I);
-  document.portals.define("prevent", prevent);
-  document.portals.define("nav", Nav);
-  document.portals.define("log", log);
   function init() {
     const cube = EventLoopCube2.init(window, document.documentElement);
     monkeyPatchAppendElements((...args) => cube.connectBranch(...args));
