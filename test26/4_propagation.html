@@ -10,7 +10,7 @@
 
   import * as dd from "../src/dd.js";
 
-  document.portals.define("one", { reaction: e => console.log("one") });
-  document.portals.define("two", { reaction: e => console.log("two") });
-  document.portals.define("three", { reaction: e => console.log("three") });
+  document.portals.define("one", { reaction: NAME => e => console.log("one") });
+  document.portals.define("two", { reaction: NAME => e => console.log("two") });
+  document.portals.define("three", { reaction: NAME => e => console.log("three") });
 </script>

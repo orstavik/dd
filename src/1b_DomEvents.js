@@ -21,7 +21,7 @@ function getTriggersComposedBubble(type, el) {
   for (; el; el = el.assignedSlot ?? el.parentElement ?? el.parentNode.host)
     if (el[EventLoopCube.PORTAL]?.[type])
       for (let at of el.attributes)
-        if (EventLoopCube.portalNames(at.name)[0] === type)
+        if (at.trigger === type)
           !first ? (first = at) : (attrs ??= [first]).push(at);
   return attrs ?? first;
 }
@@ -30,7 +30,7 @@ function getTriggersComposedTarget(type, el) {
   for (; el; el = el.assignedSlot ?? el.getRootNode()?.host)
     if (el[EventLoopCube.PORTAL]?.[type])
       for (let at of el.attributes)
-        if (EventLoopCube.portalNames(at.name)[0] === type)
+        if (at.trigger === type)
           !first ? (first = at) : (attrs ??= [first]).push(at);
   return attrs ?? first;
 }
@@ -39,7 +39,7 @@ function getTriggersBubble(type, el) {
   for (; el && el instanceof HTMLElement; el = el.parentElement)
     if (el[EventLoopCube.PORTAL]?.[type])
       for (let at of el.attributes)
-        if (EventLoopCube.portalNames(at.name)[0] === type)
+        if (at.trigger === type)
           !first ? (first = at) : (attrs ??= [first]).push(at);
   return attrs ?? first;
 }
@@ -47,7 +47,7 @@ function getTriggersTarget(type, el) {
   let attrs, first;
   if (el[EventLoopCube.PORTAL]?.[type])
     for (let at of el.attributes)
-      if (EventLoopCube.portalNames(at.name)[0] === type)
+      if (at.trigger === type)
         !first ? (first = at) : (attrs ??= [first]).push(at);
   return attrs ?? first;
 }
@@ -69,7 +69,7 @@ function Portal(TYPE, reaction) {
       eventLoopCube.dispatch(e, atOrAttrs);
   };
 
-  reaction ??= function () {
+  reaction ??= NAME => function () {
     this.ownerElement.dispatchEvent(new Event(TYPE, { bubbles, composed, cancelable: !passive }));
   }
   return {
@@ -78,8 +78,8 @@ function Portal(TYPE, reaction) {
   };
 }
 const Portals = Object.create(null);
-Portals.click = Portal("click", function () { this.ownerElement.click() });
-Portals.submit = Portal("submit", function () { this.ownerElement.requestSubmit() });
+Portals.click = Portal("click", NAME => function () { this.ownerElement.click() });
+Portals.submit = Portal("submit", NAME => function () { this.ownerElement.requestSubmit() });
 
 for (let type of DomEvents)
   Portals[type] ??= Portal(type);

@@ -1,8 +1,17 @@
+<script type="module">
+  import "../src/dd.js";
+
+  document.portals.define("spa", {
+    reaction: NAME => function (e) {
+      const url = new URL(e.destination.url);
+      if (e.canIntercept)
+        e.intercept();
+    }
+  });
+</script>
+
 <div
-  click::nav
-  popstate::nav
-  hashchange::nav
-  nav:log
+  navigate:spa:log
   data-nav="/blueberry">
   ----------------
   <a href="/blueberry/pai">/blueberry/pai</a>
@@ -20,4 +29,3 @@
     <p>paragraph</p>
   </details>
 </div>
-<script type="module" src="../src/dd.js"></script>
