@@ -1,71 +1,56 @@
+let DOTS = Object.create(null);
+let PORTALS = Object.create(null);
+setInterval(_ => {  //very crude GC
+  Object.keys(DOTS).length > 5000 && (DOTS = Object.create(null));
+  Object.keys(PORTALS).length > 5000 && (PORTALS = Object.create(null));
+}, 5000);
+Object.defineProperties(Attr.prototype, {
+  dots: { get: function () { return DOTS[this.name] ??= this.name.split(":"); } },
+  trigger: { get: function () { return PORTALS[this.dots[0]] ??= this.dots[0].split(/[._]/)[0]; } },
+});
+
 class MicroFrame {
-  #i = 1;
-  #inputs;
+  #inputs = [];
+  #i = 0;
+  #end;
 
-  constructor(event, at) {
+  constructor(at, portals = at.ownerElement.getRootNode()?.portals) {
     this.at = at;
-    this.root = at.ownerElement.getRootNode();
-    this.event = event;
-    this.names = at.name.split(":");
-    this.portalNames = EventLoopCube.portalNames(at.name);
-    this.#inputs = [event];
+    this.portals = portals;
   }
-
-  #checkLegalTail(type) {
-    const i = this.names.indexOf("");
-    if (i <= this.#i)
-      return;
-    this.event.preventDefault();
-    const errorNames = [...this.names];
-    errorNames[this.#i] += " >>awaits here<< ";
-    errorNames[i - 1] += " >>defaultAction start<< ";
-    throw new Error("A defaultAction is left behind an async reaction while " + type + ".\n" + errorNames.join(":"));
-  }
-
-  get result() { return this.#inputs[0]; }
 
   getState() {
-    return { at: this.at, event: this.event, inputs: this.#inputs, i: this.#i, names: this.names, };
+    return { at: this.at, inputs: this.#inputs, i: this.#i, end: this.#end };
   }
 
-  async run() {
-    let portal;
-    for (let re = this.names[this.#i]; re !== undefined; re = this.names[++this.#i]) {
-      if (re === "") {
-        this.#inputs.unshift(EventLoopCube.DefaultAction);
-        this.#i++;
-        if (this.root.portals.getReaction(this.portalNames[this.#i]) instanceof Promise) {
-          portal = new Error(`Asynchronous defaultActions: ":${this.names[this.#i]}" not yet loaded in "${this.at.name}"`);
-          break;
+  next(input) {
+    if (input instanceof Error) return this.#end = input;
+    if (input !== undefined) this.#inputs.unshift(input);
+    this.#i++;
+    return this.run();
+  }
+
+  run() {
+    for (; this.#i < this.at.dots.length; this.#i++) {
+      let res = this.portals.getReaction(this.at.dots[this.#i]);
+      if (res instanceof Promise)
+        return res.finally(_ => this.run());
+      if (res instanceof Function) {
+        try {
+          res = res.apply(this.at, this.#inputs);
+          if (res instanceof Promise)
+            return res.then(r => this.next(r), e => this.next(e));
+        } catch (err) {
+          res = err;
         }
       }
-      portal = this.root.portals.getReaction(this.portalNames[this.#i]);
-      if (portal instanceof Promise) {
-        this.#checkLegalTail("loading definition");
-        portal = await portal;
-      }
-      if (portal instanceof Error) break;
-      if (portal.reaction === null) {
-        portal = new Error("reaction is null: " + re);
-        break;
-      }
-      this.#inputs.unshift(portal.reaction.apply(this.at, this.#inputs));
-      if (this.#inputs[0] instanceof Promise) {
-        this.#checkLegalTail("executing function");
-        try { this.#inputs[0] = await this.#inputs[0]; } catch (err) { this.#inputs[0] = err; }
-        if (this.#inputs[0] instanceof Error) break;
-      }
-      if (this.#inputs[0] === EventLoopCube.Cancel) break;
-      if (this.#inputs[0] === EventLoopCube.Void) this.#inputs.shift();
+      if (res instanceof Error) return this.#end = res;
+      if (res !== undefined) this.#inputs.shift(res);
     }
-    if (portal instanceof Error) {
-      console.error(portal);
-      this.#inputs.unshift(portal);
-    }
-    return this.#inputs[0];
+    return this.#end = true;
   }
 
-  static make(e, at) { return new MicroFrame(e, at); }
+  static make(at) { return new MicroFrame(at); }
 }
 
 class ConnectFrame {
@@ -145,36 +130,19 @@ export class EventLoopCube {
     this.#active = true;
     for (; this.#I < this.#cube.length; this.#I++) {
       const row = this.#cube[this.#I];
-      for (; this.#J < row.length; this.#J++)
-        row[this.#J].run?.();
-      //default action handling start
-      if (row[0].event?.cancelable)
-        for (let j = this.#J - 1; j >= 0; j--)                 //when we run the default actions in reverse, 
-          if (row[j].result === EventLoopCube.DefaultAction) { //and find the top defaultAction
-            const defActRes = row[j].run();
-            if (defActRes === EventLoopCube.Cancel)             //and that defaultAction returns EventLoopCube.Cancel
-              continue;                                        //then we try the next defaultAction.
-            defActRes.then?.(res => {
-              if (res === EventLoopCube.Cancel)
-                throw new Error("defaultActions returned EventLoopCube.Cancel asynchronously: " + row[j].at.name);
-            });
-          }
-      //default action handling end
-      this.#J = 0;
+      const event = row[0];
+      for (this.#J = 1; this.#J < row.length; this.#J++)
+        row[this.#J].next?.(event);
     }
     this.#active = false;
     return;
   }
 
   dispatch(e, at) {
-    (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
-      this.#cube[this.#I].push(MicroFrame.make(e, at)) :
-      this.#loop([MicroFrame.make(e, at)]);
+    this.#loop([e, MicroFrame.make(at)]);
   }
   dispatchBatch(e, attrs) {
-    (e && this.#active && this.#cube[this.#I]?.[0].event === e) ?
-      this.#cube[this.#I].push(...attrs.map(at => MicroFrame.make(e, at))) :
-      this.#loop(attrs.map(at => MicroFrame.make(e, at)));
+    this.#loop([e, ...attrs.map(MicroFrame.make)]);
   }
   disconnect() {
     for (let at of this.#disconnectables.keys())
@@ -202,7 +170,7 @@ export class EventLoopCube {
             continue;
           el[EventLoopCube.PORTAL] = Object.create(null);
           for (let at of el.attributes) {
-            const portalName = EventLoopCube.portalNames(at.name)[0];
+            const portalName = at.trigger;
             const portal = portalMap.get(portalName);
             el[EventLoopCube.PORTAL][portalName] ||= false;
             if (portal?.onFirstConnect) {
@@ -223,7 +191,7 @@ export class EventLoopCube {
               const portal = el[EventLoopCube.PORTAL][portalName];
               if (portal?.onMove)
                 for (let at of el.attributes)
-                  if (EventLoopCube.portalNames(at.name)[0] === portalName)
+                  if (at.trigger === portalName)
                     frames.push(ConnectFrame.make("onMove", portal, at, portal.onMove.call(at)));
             }
         } else if (task === "doReConnect") {
@@ -232,7 +200,7 @@ export class EventLoopCube {
               const portal = el[EventLoopCube.PORTAL][portalName];
               if (portal?.onReconnect)
                 for (let at of el.attributes)
-                  if (EventLoopCube.portalNames(at.name)[0] === portalName)
+                  if (at.trigger === portalName)
                     frames.push(ConnectFrame.make("onReConnect", portal, at, portal.onReconnect.call(at)));
             }
         }
@@ -251,14 +219,8 @@ export class EventLoopCube {
               frames.push(ConnectFrame.make("onFirstConnect", portal, at, portal.onFirstConnect.call(at)));
     frames.length && this.#loop(frames);
   }
-  static Cancel = Symbol("Cancel");
-  static Void = Symbol("void");
-  static DefaultAction = Symbol("DefaultAction");
+  static Cancel = new Error("EventLoopCube.Cancel");
   static PORTAL = Symbol("portals");
   static MOVEABLES = Symbol("moveables");
   static RECONNECTABLES = Symbol("reconnectables");
-  static portalNames = attrName => NameCache[attrName] ??= attrName.split(":").map(n => n.split(/[._]/)[0]);
 }
-
-let NameCache = Object.create(null);
-setInterval(_ => Object.keys(NameCache).length > 5000 && (NameCache = Object.create(null)), 5000); //very crude GC

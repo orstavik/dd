@@ -42,6 +42,35 @@ export class WeakDictionaryOfSets {
   }
 }
 
+function memoizeAsync(fn, maxLimit = 10000) {
+  let cache = Object.create(null);
+  let size = 0;
+  const keepCount = Math.floor(maxLimit / 2);
+  return function (strArg) {
+    const cached = cache[strArg];
+    if (cached !== undefined)
+      return cached;
+    if (size > maxLimit) {
+      const newCache = Object.create(null);
+      let i = keepCount;
+      for (const key in cache) {
+        if (!i--) break;
+        newCache[key] = cache[key];
+      }
+      cache = newCache;
+      size = keepCount;
+    }
+    size++;
+    let res = fn(strArg);
+    if (res instanceof Promise)
+      res = res.then(
+        result => cache[strArg] = result,
+        cause => cache[strArg] = new Error(fn.name + ": " + strArg, { cause })
+      );
+    return cache[strArg] = res;
+  };
+}
+
 const Resolver = Symbol("Resolver");
 const PromiseResolver = r => Object.assign(new Promise(f => r = f), { [Resolver]: r });
 
@@ -70,8 +99,8 @@ function verifyPortalDefinition(Portal) {
   if (onDisconnect && !onReConnect)
     throw `missing .onReConnect, but defining .onDisconnect.`;
   Portal = Object.freeze({ onFirstConnect, onDisconnect, onMove, onReConnect, reaction });
-  for (let [k, v] of Object.entries(Portal))
-    if (v && (v = checkFunction(v)))
+  for (let [k, v] of Object.entries({ onFirstConnect, onDisconnect, onMove, onReConnect }))
+    if (v &&= checkFunction(v))
       throw `.${k} is ${v}`;
   return Portal;
 }
@@ -83,7 +112,7 @@ export class PortalMap {
   #portalUnresolved = Object.create(null);
 
   define(name, Portal) {
-    if (!name.match(/^[a-z][a-z0-9]*$/))
+    if (!name.match(/^[a-z][a-z0-9-]*$/))
       throw new SyntaxError(`Illegal portal name: '${name}'.`);
     if (name in this.#portalUnresolved)
       throw new ReferenceError(`Trying to define portal twice: ${name}.`);
@@ -97,8 +126,8 @@ export class PortalMap {
     try {
       this.#portals[name] = verifyPortalDefinition(Portal);
       window.eventLoopCube?.connectPortal(name, this.#portals[name]);
-    } catch (err) {
-      this.#portals[name] = new TypeError(`Portal '${name}': ${err.message}`);
+    } catch (cause) {
+      this.#portals[name] = new TypeError(`Portal '${name}': ${cause.message}`, { cause });
     } finally {
       this.#portalRequests[name]?.[Resolver](this.#portals[name]);
       delete this.#portalRequests[name];
@@ -108,10 +137,35 @@ export class PortalMap {
   get(portalName) {
     return this.#portals[portalName];
   }
-  getReaction(portalName) {
+
+  getWithCallback(portalName) {
     return this.#portals[portalName] ?? (this.#portalRequests[portalName] ??= PromiseResolver());
   }
+
+  getReaction = memoizeAsync(reactionName => {
+    const portalName = reactionName.split(/[._]/)[0];
+    const portal = this.#portals[portalName] ?? (this.#portalRequests[portalName] ??= PromiseResolver());
+    return portal instanceof Promise ?
+      portal.then(p => getReaction(p, reactionName, portalName)) :
+      getReaction(portal, reactionName, portalName);
+  });
 }
+
+function getReaction(portal, reactionName, portalName) {
+  if (portal instanceof Error)
+    return portal;
+  if (!portal.reaction)
+    return new TypeError(`Portal '${portalName}': Reaction '${reactionName}': No reaction defined.`);
+  try {
+    const reaction = portal.reaction(reactionName);
+    return reaction instanceof Promise ?
+      reaction.then(r => r, cause => new TypeError(`Portal '${portalName}': Reaction '${reactionName}': ${cause.message}`, { cause })) :
+      reaction;
+  } catch (cause) {
+    return new TypeError(`Portal '${portalName}': Reaction '${reactionName}': ${cause.message}`, { cause });
+  }
+}
+
 /**
  * TriggerReactionRaceCondition
  * -------------------------------------------------------------------------

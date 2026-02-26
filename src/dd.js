@@ -1,13 +1,16 @@
+import { patchSegments } from "./0_UrlLocationSegments.js";
 import { FormSubmitRequestFix } from "./0_FormSubmitRequestFix.js";
 import { exposeNativeDefaultAction } from "./0_NativeDefaultActions.js";
 // import { EventDefaultAction } from "./0_EventDefaultAction.js";
 import { PortalMap } from "./1_PortalMap.js";
-import { Portals as WindowDocumentEvents } from "./1c_WindowDocumentEvents.js";
+import { Portals as GlobalEvents } from "./1c_WindowDocumentEvents.js";
+import { Portals as ExtraEvents } from "./1d_navigationViewport.js";
 import { Portals as DomEvents } from "./1b_DomEvents.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I, prevent, Nav, log } from "./4_Portals.js";
+import { I, prevent, log } from "./4_Portals.js";
 
+patchSegments(URL.prototype, globalThis.Location?.prototype);
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
 exposeNativeDefaultAction();
 window.EventLoopCube = EventLoopCube;
@@ -16,18 +19,21 @@ window.EventLoopCube = EventLoopCube;
 document.portals = new PortalMap();
 Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals });
 // Object.defineProperty(ShadowRoot.prototype, "portals", { get: function () { return this.portals ??= new PortalMap2(this); } });
-for (let [k, v] of Object.entries(WindowDocumentEvents))
+const portals = {
+  ...GlobalEvents,
+  ...DomEvents,
+  ...ExtraEvents,
+  i: I,
+  prevent: prevent,
+  log: log,
+}
+for (let [k, v] of Object.entries(portals))
   document.portals.define(k, v);
-for (let [k, v] of Object.entries(DomEvents))
-  document.portals.define(k, v);
-document.portals.define("i", I);
-document.portals.define("prevent", prevent);
-document.portals.define("nav", Nav);
-document.portals.define("log", log);
 
 function init() {
   const cube = EventLoopCube.init(window, document.documentElement);
   monkeyPatchAppendElements((...args) => cube.connectBranch(...args));
+  //todo filter on the document here? if the root is a shadowRoot, we just ignore it?
 }
 
 document.readyState !== "loading" ? init() : document.addEventListener("DOMContentLoaded", init);

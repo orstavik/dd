@@ -13,7 +13,7 @@ function Portal(NAME, root = document) {
       TRIGGERS.put(NAME, this, _ => root.removeEventListener(NAME, portalDispatch));
       root.addEventListener(NAME, portalDispatch);
     },
-    reaction: () => portalDispatch(new Event(NAME)),
+    reaction: NAME => () => portalDispatch(new Event(NAME)),
   };
 }
 
