@@ -4,10 +4,11 @@ import { exposeNativeDefaultAction } from "./0_NativeDefaultActions.js";
 // import { EventDefaultAction } from "./0_EventDefaultAction.js";
 import { PortalMap } from "./1_PortalMap.js";
 import { Portals as GlobalEvents } from "./1c_WindowDocumentEvents.js";
+import { Portals as ExtraEvents } from "./1d_navigationViewport.js";
 import { Portals as DomEvents } from "./1b_DomEvents.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I, prevent, Nav, log } from "./4_Portals.js";
+import { I, prevent, log } from "./4_Portals.js";
 
 patchSegments(URL.prototype, globalThis.Location?.prototype);
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
@@ -21,9 +22,9 @@ Object.defineProperty(ShadowRoot.prototype, "portals", { value: document.portals
 const portals = {
   ...GlobalEvents,
   ...DomEvents,
+  ...ExtraEvents,
   i: I,
   prevent: prevent,
-  nav: Nav,
   log: log,
 }
 for (let [k, v] of Object.entries(portals))
