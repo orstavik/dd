@@ -45,7 +45,7 @@ class MicroFrame {
         }
       }
       if (res instanceof Error) return this.#end = res;
-      if (res !== undefined) this.#inputs.shift(res);
+      if (res !== undefined) this.#inputs.unshift(res);
     }
     return this.#end = true;
   }
