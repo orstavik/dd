@@ -3,7 +3,6 @@
 
   document.portals.define("spa", {
     reaction: NAME => function (e) {
-      const url = new URL(e.destination.url);
       if (e.canIntercept)
         e.intercept();
     }

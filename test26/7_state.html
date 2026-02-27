@@ -1,0 +1,19 @@
+<script type="module">
+  import "../src/dd.js";
+  document.portals.define("spa", { reaction: NAME => e => e.intercept() });
+  document.portals.define("make-a", { reaction: NAME => (...args) => ({ one: 1, two: 2 }) })
+
+</script>
+
+<div
+  navigate:spa:state_b
+  i:make-a:state_a
+  state_a:log
+  state_b:log
+  state_a_b:log
+  state:log>
+  ----------------
+  <a href="bob/blueberry/banana">bob/blueberry/banana</a>
+  <br>
+  <a href="?something">?something</a>
+</div>

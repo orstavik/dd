@@ -8,7 +8,7 @@ import { Portals as ExtraEvents } from "./1d_navigationViewport.js";
 import { Portals as DomEvents } from "./1b_DomEvents.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
-import { I, prevent, log } from "./4_Portals.js";
+import * as StandardPortals from "./4_Portals.js";
 
 patchSegments(URL.prototype, globalThis.Location?.prototype);
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
@@ -23,9 +23,7 @@ const portals = {
   ...GlobalEvents,
   ...DomEvents,
   ...ExtraEvents,
-  i: I,
-  prevent: prevent,
-  log: log,
+  ...StandardPortals,
 }
 for (let [k, v] of Object.entries(portals))
   document.portals.define(k, v);
