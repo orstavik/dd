@@ -136,9 +136,10 @@ const state = {
       OldStates[portal] = Object.freeze(newState);
       let res;
       for (const trigger of StateTriggers.get(portal))
-        if (!trigger[Props] || trigger[Props].some(prop => changed.includes(prop)))
+        if (!trigger[Props] || (trigger[Props].some(p => changed.includes(p)) && trigger[Props].every(p => p in newState)))
           (res ??= []).push(trigger);
-      eventLoopCube.dispatchBatch(newState, res);
+      if (res)
+        eventLoopCube.dispatchBatch(newState, res);
     }
   }
 }
