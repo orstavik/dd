@@ -1,0 +1,40 @@
+<script type="module">
+  import "../src/dd.js";
+
+  const jsonData = {
+    schemas: {
+      author: { name: 1, birthYear: 1 },
+      book: { title: 1, authors: 1 }
+    },
+    rows: {
+      "author/1": ["Orson Scott Card", 1951],
+      "author/2": ["Frank Herbert", 1920],
+      "book/1": ["Ender's Game", ["author/1"]],
+      "book/2": ["Dune", ["author/2"]],
+      "book/3": ["Collab Book", ["author/1", "author/2"]]
+    }
+  };
+
+  document.portals.define("get-data", { reaction: NAME => () => jsonData });
+  document.portals.define("spa", {
+    reaction: NAME => e => {
+      debugger;
+      return (e.intercept(), new URL(e.destination.url).hash.slice(1))
+    }
+  });
+  document.portals.define("main", { reaction: NAME => ({ er, path }) => ({ ...er[path] }) });
+
+</script>
+
+<div
+  i:get-data:er:state_er
+  navigate:spa:state_path
+  state_er_path:main:log>
+  ----------------
+  <br>
+  <a href="#author/1">bob/blueberry/banana</a>
+  <br>
+  <a href="#book/2">?something</a>
+  <br>
+  Check the console for the "db" proxy object mapped from jsonData!
+</div>

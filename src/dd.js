@@ -9,6 +9,7 @@ import { Portals as DomEvents } from "./1b_DomEvents.js";
 import { EventLoopCube } from "./2_EventLoopCube.js";
 import { monkeyPatchAppendElements } from "./3_monkeyPatchAppendElements.js";
 import * as StandardPortals from "./4_Portals.js";
+import * as ER from "./5_ER.js";
 
 patchSegments(URL.prototype, globalThis.Location?.prototype);
 FormSubmitRequestFix(HTMLFormElement.prototype, HTMLButtonElement.prototype, HTMLInputElement.prototype);
@@ -24,6 +25,7 @@ const portals = {
   ...DomEvents,
   ...ExtraEvents,
   ...StandardPortals,
+  ...ER,
 }
 for (let [k, v] of Object.entries(portals))
   document.portals.define(k, v);
