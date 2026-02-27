@@ -1,4 +1,10 @@
 (() => {
+  var __defProp = Object.defineProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
   // src/0_UrlLocationSegments.js
   function segments() {
     return this.pathname.split("/").slice(1);
@@ -166,9 +172,9 @@
         return cached;
       if (size > maxLimit) {
         const newCache = /* @__PURE__ */ Object.create(null);
-        let i2 = keepCount;
+        let i3 = keepCount;
         for (const key in cache) {
-          if (!i2--) break;
+          if (!i3--) break;
           newCache[key] = cache[key];
         }
         cache = newCache;
@@ -357,12 +363,12 @@
   var h = Symbol.for("@opennetwork/environment/events/target/listeners/this");
   var l = Symbol.for("@opennetwork/environment/events/descriptor");
   function d(t2, e2, n2) {
-    const i2 = function(t3) {
+    const i3 = function(t3) {
       return /* @__PURE__ */ function(t4) {
         return !!t4;
       }(t3) && true === t3[l];
     }(n2) ? n2 : void 0;
-    return (n3) => i2 ? i2 === n3 : (!e2 || e2 === n3.callback) && t2 === n3.type;
+    return (n3) => i3 ? i3 === n3 : (!e2 || e2 === n3.callback) && t2 === n3.type;
   }
   function f(t2) {
     return "function" == typeof t2;
@@ -375,20 +381,20 @@
       return [...this[g] ?? []];
     }
     [u](t2) {
-      const e2 = this[a], n2 = [.../* @__PURE__ */ new Set([...e2 ?? [], ...this[g] ?? []])].filter((e3) => e3.type === t2 || "*" === e3.type).filter((t3) => !this[c]?.has(t3)), i2 = "string" == typeof t2 ? this[`on${t2}`] : void 0;
-      return "function" == typeof i2 && f(i2) && n2.push({ type: t2, callback: i2, [l]: true }), n2;
+      const e2 = this[a], n2 = [.../* @__PURE__ */ new Set([...e2 ?? [], ...this[g] ?? []])].filter((e3) => e3.type === t2 || "*" === e3.type).filter((t3) => !this[c]?.has(t3)), i3 = "string" == typeof t2 ? this[`on${t2}`] : void 0;
+      return "function" == typeof i3 && f(i3) && n2.push({ type: t2, callback: i3, [l]: true }), n2;
     }
     addEventListener(t2, e2, n2) {
-      const i2 = { ...n2, isListening: () => !!this[g]?.find(d(t2, e2)), descriptor: { [l]: true, ...n2, type: t2, callback: e2 }, timestamp: Date.now() };
-      i2.isListening() || this[g]?.push(i2.descriptor);
+      const i3 = { ...n2, isListening: () => !!this[g]?.find(d(t2, e2)), descriptor: { [l]: true, ...n2, type: t2, callback: e2 }, timestamp: Date.now() };
+      i3.isListening() || this[g]?.push(i3.descriptor);
     }
     removeEventListener(t2, e2, n2) {
       if (!f(e2)) return;
-      const i2 = this[a] ?? this[g] ?? [], r2 = i2.findIndex(d(t2, e2, n2));
+      const i3 = this[a] ?? this[g] ?? [], r2 = i3.findIndex(d(t2, e2, n2));
       if (-1 === r2) return;
       const o2 = this[g]?.findIndex(d(t2, e2, n2)) ?? -1;
       -1 !== o2 && this[g]?.splice(o2, 1);
-      const s2 = i2[r2];
+      const s2 = i3[r2];
       s2 && this[c]?.add(s2);
     }
     hasEventListener(t2, e2) {
@@ -402,13 +408,13 @@
       super(), this[h] = t2;
     }
     async dispatchEvent(t2) {
-      const i2 = this[u]?.(t2.type) ?? [];
+      const i3 = this[u]?.(t2.type) ?? [];
       if (o(t2) && t2.signal.aborted) throw new n();
       const r2 = e(a2 = t2) && false !== a2.parallel;
       var a2;
       const c2 = [];
-      for (let e2 = 0; e2 < i2.length; e2 += 1) {
-        const n2 = i2[e2], a3 = (async () => {
+      for (let e2 = 0; e2 < i3.length; e2 += 1) {
+        const n2 = i3[e2], a3 = (async () => {
           n2.once && this.removeEventListener(n2.type, n2.callback, n2), await n2.callback.call(this[h] ?? this, t2);
         })();
         if (r2) c2.push(a3);
@@ -508,10 +514,10 @@
   };
   function U(t2) {
     let e2, n2;
-    const i2 = new Promise((t3, i3) => {
-      e2 = t3, n2 = i3;
+    const i3 = new Promise((t3, i4) => {
+      e2 = t3, n2 = i4;
     });
-    return R(e2), R(n2), { resolve: e2, reject: n2, promise: t2 ? i2.catch(t2) : i2 };
+    return R(e2), R(n2), { resolve: e2, reject: n2, promise: t2 ? i3.catch(t2) : i3 };
   }
   function R(t2) {
     if (!t2) throw new Error("Value not provided");
@@ -617,8 +623,8 @@
     }
     constructor(t2) {
       super(), this[bt] = [], this[z] = t2[z] ?? this[z], this[B] = t2[B] ?? this[B], this.#n = t2;
-      const e2 = this.finished = this[z].promise, i2 = this.committed = this[B].promise;
-      e2.catch((t3) => t3), i2.catch((t3) => t3), this.from = t2.from, this.navigationType = t2.navigationType, this[Y] = t2[Y], this[X] = t2[X];
+      const e2 = this.finished = this[z].promise, i3 = this.committed = this[B].promise;
+      e2.catch((t3) => t3), i3.catch((t3) => t3), this.from = t2.from, this.navigationType = t2.navigationType, this[Y] = t2[Y], this[X] = t2[X];
       const r2 = t2[it];
       if (r2) for (const t3 of r2) this[it].add(t3);
       this[Z] = t2[Z], this.addEventListener(ft, this.#s, { once: true }), this.addEventListener(gt, this.#a, { once: true }), this.addEventListener(ft, this.#c, { once: true }), this.addEventListener(gt, this.#u, { once: true }), this.addEventListener(yt, this.#h, { once: true }), this.addEventListener(wt, () => {
@@ -664,15 +670,15 @@
         if (!t2) return;
         if (j(t2)) return _("EVENT_INTERCEPT_HANDLER"), t2;
         if ("function" == typeof t2) return _("EVENT_INTERCEPT_HANDLER"), t2();
-        const { handler: n3, commit: i3 } = t2;
-        i3 && "string" == typeof i3 && e2[bt].push(i3);
+        const { handler: n3, commit: i4 } = t2;
+        i4 && "string" == typeof i4 && e2[bt].push(i4);
         if ("function" != typeof n3) return;
         return n3();
       }();
       if (this[st] = true, !n2) return;
       this[ct] = true;
-      const i2 = n2.then(() => ({ status: "fulfilled", value: void 0 })).catch(async (t3) => (await this[lt](t3), { status: "rejected", reason: t3 }));
-      this.#i.add(i2);
+      const i3 = n2.then(() => ({ status: "fulfilled", value: void 0 })).catch(async (t3) => (await this[lt](t3), { status: "rejected", reason: t3 }));
+      this.#i.add(i3);
     };
     [ut] = async () => {
       if (!this.#i.size) return this[Z];
@@ -761,12 +767,12 @@
   function Ct() {
   }
   function Dt(t2) {
-    const { commit: e2, currentIndex: n2, options: i2, known: o2, currentEntry: s2, transition: a2, transition: { [J]: c2, [Z]: u2, [ot]: h2 }, reportError: l2 } = t2;
+    const { commit: e2, currentIndex: n2, options: i3, known: o2, currentEntry: s2, transition: a2, transition: { [J]: c2, [Z]: u2, [ot]: h2 }, reportError: l2 } = t2;
     let { transition: { [G]: d2 } } = t2, f2 = [...c2];
     const g2 = new Set(o2);
     let v2 = -1, p2 = n2;
     if (d2 === M) {
-      const { index: t3 } = i2 ?? { index: void 0 };
+      const { index: t3 } = i3 ?? { index: void 0 };
       if ("number" != typeof t3) throw new r("Expected index to be provided for rollback");
       v2 = t3, p2 = t3;
     } else "traverse" === d2 || "reload" === d2 ? (v2 = function(t3, e3) {
@@ -774,7 +780,7 @@
       return -1 !== n3 ? n3 : -1;
     }(0, u2), p2 = v2) : "replace" === d2 ? -1 === n2 ? (d2 = "push", v2 = n2 + 1, p2 = v2) : (v2 = n2, p2 = n2) : (v2 = n2 + 1, p2 = v2);
     if ("number" != typeof v2 || -1 === v2) throw new r("Could not resolve next index");
-    if (!u2.url) throw console.trace({ navigationType: d2, entry: u2, options: i2 }), new r("Expected entry url");
+    if (!u2.url) throw console.trace({ navigationType: d2, entry: u2, options: i3 }), new r("Expected entry url");
     const y2 = { url: u2.url, key: u2.key, id: u2.id, index: v2, sameDocument: u2.sameDocument, getState: () => u2.getState() };
     let m2 = false;
     const w2 = kt(s2?.url), b2 = new URL(y2.url);
@@ -786,38 +792,38 @@
     }
     let E2;
     const { resolve: S2, promise: k2 } = function() {
-      let t3, e3, n3 = false, i3 = "pending";
+      let t3, e3, n3 = false, i4 = "pending";
       const r2 = new Promise((r3, o3) => {
         t3 = (t4) => {
-          i3 = "fulfilled", n3 = true, r3(t4);
+          i4 = "fulfilled", n3 = true, r3(t4);
         }, e3 = (t4) => {
-          i3 = "rejected", n3 = true, o3(t4);
+          i4 = "rejected", n3 = true, o3(t4);
         };
       });
       return O(t3), O(e3), { get settled() {
         return n3;
       }, get status() {
-        return i3;
+        return i4;
       }, resolve: t3, reject: e3, promise: r2 };
     }();
     function x2() {
       O(E2, "Expected contextToCommit"), S2(e2(E2));
     }
-    const T2 = new D(), L2 = new Tt("navigate", { signal: T2.signal, info: void 0, ...i2, canIntercept: i2?.[It] ?? true, formData: i2?.[Lt] ?? void 0, downloadRequest: i2?.[Pt] ?? void 0, hashChange: m2, navigationType: i2?.navigationType ?? ("string" == typeof d2 ? d2 : "replace"), userInitiated: i2?.[Ut] ?? false, destination: y2 }), P2 = i2?.[Rt], I3 = a2[wt].bind(a2);
+    const T2 = new D(), L2 = new Tt("navigate", { signal: T2.signal, info: void 0, ...i3, canIntercept: i3?.[It] ?? true, formData: i3?.[Lt] ?? void 0, downloadRequest: i3?.[Pt] ?? void 0, hashChange: m2, navigationType: i3?.navigationType ?? ("string" == typeof d2 ? d2 : "replace"), userInitiated: i3?.[Ut] ?? false, destination: y2 }), P2 = i3?.[Rt], I2 = a2[wt].bind(a2);
     if (P2) {
       const t3 = P2;
       L2.intercept = function(e3) {
         return t3.preventDefault(), h2(e3);
       }, L2.preventDefault = function() {
-        return t3.preventDefault(), I3();
+        return t3.preventDefault(), I2();
       };
-    } else L2.intercept = h2, L2.preventDefault = I3;
+    } else L2.intercept = h2, L2.preventDefault = I2;
     L2.transitionWhile = L2.intercept, L2.commit = x2, l2 && (L2.reportError = l2), L2.scroll = Ct, P2 && (L2.originalEvent = P2);
     const U2 = new xt("currententrychange", { from: s2, navigationType: L2.navigationType });
     let R2 = [], C2 = [], j2 = [];
     const N2 = c2.map((t3) => t3.key);
     if (d2 === M) {
-      const { entries: t3 } = i2 ?? { entries: void 0 };
+      const { entries: t3 } = i3 ?? { entries: void 0 };
       if (!t3) throw new r("Expected entries to be provided for rollback");
       f2 = t3, f2.forEach((t4) => g2.add(t4));
       const e3 = f2.map((t4) => t4.key);
@@ -839,7 +845,7 @@
   function jt(t2) {
     if ("undefined" != typeof CustomEvent && "string" == typeof t2.type) {
       if (t2 instanceof CustomEvent) return t2;
-      const { type: n2, detail: i2, ...r2 } = t2, o2 = new CustomEvent(n2, { detail: i2 ?? r2 });
+      const { type: n2, detail: i3, ...r2 } = t2, o2 = new CustomEvent(n2, { detail: i3 ?? r2 });
       return Object.assign(o2, r2), function(t3, n3) {
         if (!e(t3)) throw new Error("Expected event");
         if (void 0 !== n3 && t3.type !== n3) throw new Error(`Expected event type ${String(n3)}, got ${t3.type.toString()}`);
@@ -891,8 +897,8 @@
       t2 <= -1 || t2 >= this.#d.length || (this.#g = t2);
     }
     [Nt](t2) {
-      this.#d = t2.map(({ key: t3, url: e2, navigationType: n2, state: i2, sameDocument: r2 }, o2) => {
-        return new I({ getState: this[qt], navigationType: (s2 = n2, "reload" === s2 || "push" === s2 || "replace" === s2 || "traverse" === s2 ? n2 : "push"), sameDocument: r2 ?? true, index: o2, url: e2, key: t3, state: i2 });
+      this.#d = t2.map(({ key: t3, url: e2, navigationType: n2, state: i3, sameDocument: r2 }, o2) => {
+        return new I({ getState: this[qt], navigationType: (s2 = n2, "reload" === s2 || "push" === s2 || "replace" === s2 || "traverse" === s2 ? n2 : "push"), sameDocument: r2 ?? true, index: o2, url: e2, key: t3, state: i3 });
         var s2;
       }), -1 === this.#g && this.#d.length && (this.#g = 0);
     }
@@ -922,16 +928,16 @@
     }
     #E = (t2) => {
       const e2 = this.currentEntry?.url;
-      return !e2 || (n2 = new URL(e2), i2 = new URL(t2), n2.origin === i2.origin);
-      var n2, i2;
+      return !e2 || (n2 = new URL(e2), i3 = new URL(t2), n2.origin === i3.origin);
+      var n2, i3;
     };
     navigate(t2, e2) {
       let n2 = this.#y;
       this.currentEntry?.url && (n2 = this.currentEntry?.url);
-      const i2 = new URL(t2, n2).toString();
+      const i3 = new URL(t2, n2).toString();
       let r2 = "push";
-      "auto" !== e2?.history && e2?.history ? "push" !== e2?.history && "replace" !== e2?.history || (r2 = e2?.history) : i2 === this.currentEntry?.url && (r2 = "replace");
-      const o2 = this.#S({ getState: this[qt], url: i2, ...e2, sameDocument: this.#E(i2), navigationType: r2 });
+      "auto" !== e2?.history && e2?.history ? "push" !== e2?.history && "replace" !== e2?.history || (r2 = e2?.history) : i3 === this.currentEntry?.url && (r2 = "replace");
+      const o2 = this.#S({ getState: this[qt], url: i3, ...e2, sameDocument: this.#E(i3), navigationType: r2 });
       return this.#w(r2, o2, void 0, e2);
     }
     #b = (t2, e2) => this.#S({ ...t2, getState: this[qt], index: t2?.index ?? void 0, state: e2?.state ?? t2?.getState(), navigationType: t2?.[k] ?? ("string" == typeof e2?.navigationType ? e2.navigationType : "replace"), ...e2, get [x]() {
@@ -943,56 +949,56 @@
       const e2 = t2.key || ("replace" === t2.navigationType ? this.currentEntry?.key : void 0), n2 = new I({ ...t2, key: e2, index: t2.index ?? (() => this.#d.indexOf(n2)) });
       return n2;
     };
-    #w = (t2, e2, n2, i2) => {
+    #w = (t2, e2, n2, i3) => {
       if (e2 === this.currentEntry) throw new r();
       if (this.#d.findIndex((t3) => t3.id === e2.id) > -1) throw new r();
-      return this.#k(t2, e2, n2, i2);
+      return this.#k(t2, e2, n2, i3);
     };
-    #k = (t2, e2, n2, i2) => {
+    #k = (t2, e2, n2, i3) => {
       const r2 = n2 ?? new St({ from: this.currentEntry, navigationType: "string" == typeof t2 ? t2 : "replace", rollback: (t3) => this.#x(r2, t3), [G]: t2, [J]: [...this.#d], [Q]: this.#g, [it]: [...this.#f], [Z]: e2, [K]: this }), { finished: o2, committed: s2 } = r2;
-      return this.#T(r2), (() => this.#L(t2, e2, r2, i2))().catch((t3) => {
+      return this.#T(r2), (() => this.#L(t2, e2, r2, i3))().catch((t3) => {
       }), { committed: s2, finished: o2 };
     };
     #T = (t2) => {
       this.#p.add(t2);
     };
-    #L = (t2, e2, n2, i2) => {
+    #L = (t2, e2, n2, i3) => {
       try {
-        return this.#l += 1, this.#P(t2, e2, n2, i2);
+        return this.#l += 1, this.#P(t2, e2, n2, i3);
       } finally {
         this.#l -= 1;
       }
     };
     #x = (t2, e2) => {
-      const n2 = t2[J], i2 = t2[Q], r2 = n2[i2], o2 = r2 ? this.#b(r2, e2) : void 0, s2 = { ...e2, index: i2, known: /* @__PURE__ */ new Set([...this.#f, ...n2]), navigationType: o2?.[k] ?? "replace", entries: n2 }, a2 = o2 ? M : W, c2 = o2 ?? this.#S({ getState: this[qt], navigationType: "replace", index: s2.index, sameDocument: true, ...e2 });
+      const n2 = t2[J], i3 = t2[Q], r2 = n2[i3], o2 = r2 ? this.#b(r2, e2) : void 0, s2 = { ...e2, index: i3, known: /* @__PURE__ */ new Set([...this.#f, ...n2]), navigationType: o2?.[k] ?? "replace", entries: n2 }, a2 = o2 ? M : W, c2 = o2 ?? this.#S({ getState: this[qt], navigationType: "replace", index: s2.index, sameDocument: true, ...e2 });
       return this.#w(a2, c2, void 0, s2);
     };
-    #P = (t2, e2, n2, i2) => {
+    #P = (t2, e2, n2, i3) => {
       let o2 = t2;
       const s2 = _t();
       s2 && e2.sameDocument && "string" == typeof o2 && s2?.mark?.(`same-document-navigation:${e2.id}`);
       let a2 = false, c2 = false;
       const { currentEntry: u2 } = this;
       this.#v?.finished?.catch((t3) => t3), this.#v?.[z]?.promise?.catch((t3) => t3), this.#v?.[B]?.promise?.catch((t3) => t3), this.#v?.[wt](), this.#v = n2;
-      const h2 = n2.dispatchEvent({ type: vt, transition: n2, entry: e2 }), l2 = ({ entries: t3, index: e3, known: i3 }) => {
-        n2.signal.aborted || (this.#d = t3, i3 && (this.#f = /* @__PURE__ */ new Set([...this.#f, ...i3])), this.#g = e3, this[$t](this.currentEntry));
+      const h2 = n2.dispatchEvent({ type: vt, transition: n2, entry: e2 }), l2 = ({ entries: t3, index: e3, known: i4 }) => {
+        n2.signal.aborted || (this.#d = t3, i4 && (this.#f = /* @__PURE__ */ new Set([...this.#f, ...i4])), this.#g = e3, this[$t](this.currentEntry));
       }, d2 = async (t3) => {
         if (c2) return;
-        const i3 = [n2.dispatchEvent(jt({ type: dt, transition: n2, entry: e2 }))];
+        const i4 = [n2.dispatchEvent(jt({ type: dt, transition: n2, entry: e2 }))];
         if (n2.signal.aborted) return;
         c2 = true, l2(t3);
         const { entriesChange: r2 } = t3;
-        i3.push(n2.dispatchEvent(jt({ type: ft, transition: n2, entry: e2 }))), r2 && i3.push(this.dispatchEvent(jt({ type: "entrieschange", ...r2 }))), await Promise.all(i3);
+        i4.push(n2.dispatchEvent(jt({ type: ft, transition: n2, entry: e2 }))), r2 && i4.push(this.dispatchEvent(jt({ type: "entrieschange", ...r2 }))), await Promise.all(i4);
       }, f2 = async () => {
-        if (await h2, "number" != typeof i2?.index || !i2.entries) throw new r();
-        const t3 = this.entries(), n3 = t3.map((t4) => t4.key), o3 = i2.entries.map((t4) => t4.key), s3 = t3.filter((t4) => !o3.includes(t4.key)), c3 = i2.entries.filter((t4) => !n3.includes(t4.key));
-        return await d2({ entries: i2.entries, index: i2.index, known: i2.known, entriesChange: s3.length || c3.length ? { removedEntries: s3, addedEntries: c3, updatedEntries: [] } : void 0 }), await this.dispatchEvent(jt({ type: "currententrychange" })), a2 = true, e2;
+        if (await h2, "number" != typeof i3?.index || !i3.entries) throw new r();
+        const t3 = this.entries(), n3 = t3.map((t4) => t4.key), o3 = i3.entries.map((t4) => t4.key), s3 = t3.filter((t4) => !o3.includes(t4.key)), c3 = i3.entries.filter((t4) => !n3.includes(t4.key));
+        return await d2({ entries: i3.entries, index: i3.index, known: i3.known, entriesChange: s3.length || c3.length ? { removedEntries: s3, addedEntries: c3, updatedEntries: [] } : void 0 }), await this.dispatchEvent(jt({ type: "currententrychange" })), a2 = true, e2;
       }, g2 = () => {
         if (t2 === W) return f2();
-        const r2 = Dt({ currentEntry: u2, currentIndex: this.#g, options: i2, transition: n2, known: this.#f, commit: d2, reportError: n2[lt] }), s3 = new Promise(queueMicrotask);
+        const r2 = Dt({ currentEntry: u2, currentIndex: this.#g, options: i3, transition: n2, known: this.#f, commit: d2, reportError: n2[lt] }), s3 = new Promise(queueMicrotask);
         let c3 = [];
         const h3 = function* (t3) {
-          const i3 = new Promise(queueMicrotask), { currentEntryChange: r3, navigate: s4, waitForCommit: c4, commit: h4, abortController: l4 } = t3, d3 = l4.abort.bind(l4);
+          const i4 = new Promise(queueMicrotask), { currentEntryChange: r3, navigate: s4, waitForCommit: c4, commit: h4, abortController: l4 } = t3, d3 = l4.abort.bind(l4);
           if (n2.signal.addEventListener("abort", d3, { once: true }), "string" == typeof o2 || o2 === M) {
             const t4 = u2?.dispatchEvent(jt({ type: "navigatefrom", intercept: n2[ot], transitionWhile: n2[ot] }));
             t4 && (yield t4);
@@ -1001,7 +1007,7 @@
           n2[Et] || h4();
           yield c4, e2.sameDocument && (yield n2.dispatchEvent(r3));
           a2 = true, "string" == typeof o2 && (yield e2.dispatchEvent(jt({ type: "navigateto", intercept: n2[ot], transitionWhile: n2[ot] })));
-          yield v2(), n2[rt].size || (yield i3);
+          yield v2(), n2[rt].size || (yield i4);
           yield n2.dispatchEvent({ type: pt, transition: n2, entry: e2 }), yield n2[ut](), n2.signal.removeEventListener("abort", d3), yield n2[gt](), "string" == typeof o2 && (yield n2.dispatchEvent(jt({ type: "finish", intercept: n2[ot], transitionWhile: n2[ot] })), yield n2.dispatchEvent(jt({ type: "navigatesuccess", intercept: n2[ot], transitionWhile: n2[ot] })));
         }(r2)[Symbol.iterator](), l3 = { [Symbol.iterator]: () => ({ next: () => h3.next() }) };
         async function g3() {
@@ -1049,8 +1055,8 @@
       const { currentEntry: e2 } = this;
       if (!e2) throw new r("Expected current entry");
       e2[T](t2.state), this[$t](e2);
-      const n2 = new xt("currententrychange", { from: e2, navigationType: void 0 }), i2 = jt({ type: "entrieschange", addedEntries: [], removedEntries: [], updatedEntries: [e2] });
-      return Promise.all([this.dispatchEvent(n2), this.dispatchEvent(i2)]);
+      const n2 = new xt("currententrychange", { from: e2, navigationType: void 0 }), i3 = jt({ type: "entrieschange", addedEntries: [], removedEntries: [], updatedEntries: [e2] });
+      return Promise.all([this.dispatchEvent(n2), this.dispatchEvent(i3)]);
     }
   };
   function _t() {
@@ -1147,10 +1153,10 @@
     }
     #D = (t2, e2) => {
       const n2 = this[Yt].toString();
-      let i2;
-      "href" === t2 ? i2 = new URL(e2, n2) : (i2 = new URL(n2), i2[t2] = e2);
-      const r2 = i2.toString();
-      n2 !== r2 && this.#j(i2, () => this.#U.navigate(r2));
+      let i3;
+      "href" === t2 ? i3 = new URL(e2, n2) : (i3 = new URL(n2), i3[t2] = e2);
+      const r2 = i3.toString();
+      n2 !== r2 && this.#j(i3, () => this.#U.navigate(r2));
     };
     replace(t2) {
       return this.#j(t2, (t3) => this.#U.navigate(t3.toString(), { history: "replace" }));
@@ -1217,9 +1223,9 @@
       if ("number" != typeof t2 || 0 === t2 || isNaN(t2)) return this[Gt](this.#U.reload());
       const e2 = this.#U.entries(), { currentEntry: n2 } = this.#U;
       if (!n2) throw new Error(`Could not go ${t2}`);
-      const i2 = e2[n2.index + t2];
-      if (!i2) throw new Error(`Could not go ${t2}`);
-      const r2 = i2.key;
+      const i3 = e2[n2.index + t2];
+      if (!i3) throw new Error(`Could not go ${t2}`);
+      const r2 = i3.key;
       return this[Gt](this.#U.traverseTo(r2));
     }
     replaceState(t2, e2, n2) {
@@ -1241,7 +1247,7 @@
   }
   function se(t2, e2 = le.limit) {
     let n2 = t2.entries();
-    return "number" == typeof e2 && (n2 = n2.slice(-e2)), n2.map(({ id: t3, key: e3, url: n3, sameDocument: i2 }) => ({ id: t3, key: e3, url: n3, sameDocument: i2 }));
+    return "number" == typeof e2 && (n2 = n2.slice(-e2)), n2.map(({ id: t3, key: e3, url: n3, sameDocument: i3 }) => ({ id: t3, key: e3, url: n3, sameDocument: i3 }));
   }
   function ae(t2, e2, n2 = le.limit) {
     return { [ie]: true, currentIndex: e2.index, key: e2.key, entries: se(t2, n2), state: e2.getState() };
@@ -1249,12 +1255,12 @@
   function ce(t2, e2, n2 = le.limit) {
     return { [ne]: ae(t2, e2, n2) };
   }
-  function ue(t2, e2, n2, i2, r2) {
+  function ue(t2, e2, n2, i3, r2) {
     !function() {
       if ("undefined" == typeof sessionStorage) return;
       try {
-        const i3 = (e3 = ce(t2, n2, r2), Kt.stringify(e3));
-        sessionStorage.setItem(n2.key, i3);
+        const i4 = (e3 = ce(t2, n2, r2), Kt.stringify(e3));
+        sessionStorage.setItem(n2.key, i4);
       } catch {
       }
       var e3;
@@ -1278,10 +1284,10 @@
       try {
         const n2 = sessionStorage.getItem(e2.key);
         if (!n2) return;
-        const i2 = (t3 = n2, Kt.parse(t3));
-        if (!A(i2)) return;
-        if (!oe(i2)) return;
-        return i2[ne].state;
+        const i3 = (t3 = n2, Kt.parse(t3));
+        if (!A(i3)) return;
+        if (!oe(i3)) return;
+        return i3[ne].state;
       } catch {
         return;
       }
@@ -1295,38 +1301,38 @@
   function fe(t2, e2) {
     e2.addEventListener("click", (n2) => {
       if (n2.target?.ownerDocument === e2.document) {
-        const i2 = ge(n2);
-        A(i2) && function(n3, i3) {
+        const i3 = ge(n2);
+        A(i3) && function(n3, i4) {
           !function() {
             if (0 !== (r2 = n3).button || r2.defaultPrevented || r2.metaKey || r2.altKey || r2.ctrlKey || r2.shiftKey) return;
             var r2;
             O(n3);
-            const o2 = i3.getAttribute("target");
+            const o2 = i4.getAttribute("target");
             if (o2) {
               if ("_blank" === o2) return;
               if (o2 !== e2.name) return;
             }
-            const s2 = { history: "auto", [Ut]: true, [Pt]: i3.download, [Rt]: n3 };
-            t2.navigate(i3.href, s2);
+            const s2 = { history: "auto", [Ut]: true, [Pt]: i4.download, [Rt]: n3 };
+            t2.navigate(i4.href, s2);
           }();
-        }(n2, i2);
+        }(n2, i3);
       }
     }), e2.addEventListener("submit", (n2) => {
       if (n2.target?.ownerDocument === e2.document) {
-        const i2 = ve(n2);
-        A(i2) && function(n3, i3) {
+        const i3 = ve(n2);
+        A(i3) && function(n3, i4) {
           !function() {
             if (n3.defaultPrevented) return;
-            const r2 = n3.submitter && "formMethod" in n3.submitter && n3.submitter.formMethod ? n3.submitter.formMethod : i3.method;
+            const r2 = n3.submitter && "formMethod" in n3.submitter && n3.submitter.formMethod ? n3.submitter.formMethod : i4.method;
             if ("dialog" === r2) return;
-            const o2 = n3.submitter && "formAction" in n3.submitter && n3.submitter.formAction ? n3.submitter.formAction : i3.action, s2 = i3.getAttribute("target");
+            const o2 = n3.submitter && "formAction" in n3.submitter && n3.submitter.formAction ? n3.submitter.formAction : i4.action, s2 = i4.getAttribute("target");
             if (s2) {
               if ("_blank" === s2) return;
               if (s2 !== e2.name) return;
             }
             let a2;
             try {
-              a2 = new FormData(i3);
+              a2 = new FormData(i4);
             } catch {
               a2 = new FormData(void 0);
             }
@@ -1337,7 +1343,7 @@
             const d2 = { history: "auto", [Ut]: true, [Lt]: u2, [Rt]: l2 };
             t2.navigate(h2.href, d2);
           }();
-        }(n2, i2);
+        }(n2, i3);
       }
     });
   }
@@ -1382,19 +1388,19 @@
       } }), Object.defineProperty(e3, "originalState", { ...n3 });
     }(), function() {
       if (e2 instanceof Zt) return;
-      const t3 = new Zt({ navigation: n2 }), i2 = t3.pushState.bind(t3), r2 = t3.replaceState.bind(t3), o2 = t3.go.bind(t3), s2 = t3.back.bind(t3), a2 = t3.forward.bind(t3), c2 = Object.getPrototypeOf(e2), u2 = { pushState: { ...Object.getOwnPropertyDescriptor(c2, "pushState"), value: i2 }, replaceState: { ...Object.getOwnPropertyDescriptor(c2, "replaceState"), value: r2 }, go: { ...Object.getOwnPropertyDescriptor(c2, "go"), value: o2 }, back: { ...Object.getOwnPropertyDescriptor(c2, "back"), value: s2 }, forward: { ...Object.getOwnPropertyDescriptor(c2, "forward"), value: a2 } };
+      const t3 = new Zt({ navigation: n2 }), i3 = t3.pushState.bind(t3), r2 = t3.replaceState.bind(t3), o2 = t3.go.bind(t3), s2 = t3.back.bind(t3), a2 = t3.forward.bind(t3), c2 = Object.getPrototypeOf(e2), u2 = { pushState: { ...Object.getOwnPropertyDescriptor(c2, "pushState"), value: i3 }, replaceState: { ...Object.getOwnPropertyDescriptor(c2, "replaceState"), value: r2 }, go: { ...Object.getOwnPropertyDescriptor(c2, "go"), value: o2 }, back: { ...Object.getOwnPropertyDescriptor(c2, "back"), value: s2 }, forward: { ...Object.getOwnPropertyDescriptor(c2, "forward"), value: a2 } };
       Object.defineProperties(c2, u2);
       const h2 = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(e2), "state");
       Object.defineProperty(e2, "state", { ...h2, get: () => t3.state }), Object.defineProperty(e2, "originalState", { ...h2 });
     }();
   }
   function me(t2 = le) {
-    const { persist: e2, persistState: n2, history: i2, limit: o2, patch: s2, interceptEvents: a2, window: c2 = te, navigation: u2 } = { ...le, ...t2 }, h2 = e2 || n2, l2 = c2 ?? te, d2 = t2.history && "boolean" != typeof t2.history ? t2.history : function(t3 = te) {
+    const { persist: e2, persistState: n2, history: i3, limit: o2, patch: s2, interceptEvents: a2, window: c2 = te, navigation: u2 } = { ...le, ...t2 }, h2 = e2 || n2, l2 = c2 ?? te, d2 = t2.history && "boolean" != typeof t2.history ? t2.history : function(t3 = te) {
       if (void 0 !== t3) return t3.history;
     }(l2);
     if (!d2) return function(t3) {
-      const e3 = [{ key: E() }], n3 = t3 ?? new Vt({ entries: e3 }), i3 = new Zt({ navigation: n3 });
-      return { navigation: n3, history: i3, apply() {
+      const e3 = [{ key: E() }], n3 = t3 ?? new Vt({ entries: e3 }), i4 = new Zt({ navigation: n3 });
+      return { navigation: n3, history: i4, apply() {
         de(t3) && !n3.entries().length && t3[Nt](e3);
       } };
     }();
@@ -1403,7 +1409,7 @@
     let v2 = { [ie]: true, currentIndex: -1, entries: [], key: "", state: void 0 };
     oe(g2) && (v2 = g2[ne]);
     let p2 = v2.entries;
-    const y2 = !(!c2 && !i2 || !d2);
+    const y2 = !(!c2 && !i3 || !d2);
     if (!p2.length) {
       let t3, e3;
       f2?.href && (t3 = f2.href), oe(g2) || re(g2) || (e3 = g2);
@@ -1421,7 +1427,7 @@
     } }, w2 = u2 ?? new Vt(m2), b2 = d2?.pushState.bind(d2), S2 = d2?.replaceState.bind(d2), k2 = d2?.go.bind(d2);
     return { navigation: w2, history: d2, apply() {
       if (de(w2) && w2[Ot](m2), y2) {
-        const t3 = /* @__PURE__ */ new Set(), i3 = /* @__PURE__ */ new Set();
+        const t3 = /* @__PURE__ */ new Set(), i4 = /* @__PURE__ */ new Set();
         w2.addEventListener("navigate", (t4) => {
           if (t4.destination.sameDocument) {
             if (w2.transition instanceof St) {
@@ -1455,7 +1461,7 @@
           const { currentEntry: r2, transition: s3 } = w2;
           if (!r2) return;
           const { key: a3, url: c3 } = r2;
-          if (i3.delete(a3) || !r2?.sameDocument) return;
+          if (i4.delete(a3) || !r2?.sameDocument) return;
           const u3 = ce(w2, r2, o2);
           switch (e3 || "replace") {
             case "push":
@@ -1472,7 +1478,7 @@
           const { [ne]: { key: h3 } } = u3;
           if (t3.delete(h3)) return;
           let l3;
-          i3.add(h3);
+          i4.add(h3);
           try {
             l3 = w2.traverseTo(h3).committed;
           } catch (t4) {
@@ -1796,7 +1802,7 @@
           }
         }
         if (res instanceof Error) return this.#end = res;
-        if (res !== void 0) this.#inputs.shift(res);
+        if (res !== void 0) this.#inputs.unshift(res);
       }
       return this.#end = true;
     }
@@ -1903,7 +1909,7 @@
         if (!(top instanceof Element) || !top.hasAttributes() && !top.children.length)
           continue;
         const task = !top[_EventLoopCube.PORTAL] ? "doFirstConnect" : top.isConnected ? "doMove" : "doReConnect";
-        for (let el = top, subs = top.getElementsByTagName("*"), i2 = 0; el; el = subs[i2++]) {
+        for (let el = top, subs = top.getElementsByTagName("*"), i3 = 0; el; el = subs[i3++]) {
           if (task === "doFirstConnect") {
             if (!el.hasAttributes())
               continue;
@@ -2076,7 +2082,14 @@
   }
 
   // src/4_Portals.js
-  var I2 = {
+  var Portals_exports = {};
+  __export(Portals_exports, {
+    i: () => i2,
+    log: () => log,
+    prevent: () => prevent,
+    state: () => state
+  });
+  var i2 = {
     onFirstConnect: function() {
       eventLoopCube.dispatch(null, this);
     }
@@ -2087,6 +2100,40 @@
   var log = {
     reaction: (NAME) => function(...args) {
       console.log(this, ...args);
+    }
+  };
+  var StateTriggers = new WeakDictionaryOfSets();
+  var OldStates = /* @__PURE__ */ Object.create(null);
+  var Props = Symbol("props");
+  var state = {
+    onFirstConnect: function() {
+      const [portal, ...props] = this.dots[0].split("_");
+      OldStates[portal] ??= /* @__PURE__ */ Object.create(null);
+      if (props.length)
+        this[Props] = props;
+      StateTriggers.put(portal, this, (_2) => OldStates[portal] = void 0);
+    },
+    reaction: (NAME) => {
+      const [portal, ...props] = NAME.split("_");
+      return function(...args) {
+        const oldState = OldStates[portal];
+        let newState, changed;
+        for (let i3 = 0; i3 < props.length; i3++) {
+          const prop = props[i3];
+          const arg = args[i3];
+          if (oldState[prop] !== arg) {
+            newState = Object.assign(newState ?? /* @__PURE__ */ Object.create(null), oldState, { [prop]: arg });
+            (changed ??= []).push(prop);
+          }
+        }
+        if (!newState) return;
+        OldStates[portal] = Object.freeze(newState);
+        let res;
+        for (const trigger of StateTriggers.get(portal))
+          if (!trigger[Props] || trigger[Props].some((prop) => changed.includes(prop)))
+            (res ??= []).push(trigger);
+        eventLoopCube.dispatchBatch(newState, res);
+      };
     }
   };
 
@@ -2101,10 +2148,7 @@
     ...Portals,
     ...Portals3,
     ...Portals2,
-    i: I2,
-    prevent,
-    // nav: Nav,
-    log
+    ...Portals_exports
   };
   for (let [k2, v2] of Object.entries(portals))
     document.portals.define(k2, v2);
