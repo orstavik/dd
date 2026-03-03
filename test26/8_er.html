@@ -2,25 +2,16 @@
   import "../src/dd.js";
 
   const jsonData = {
-    schemas: {
-      author: { name: 1, birthYear: 1 },
-      book: { title: 1, authors: 1 }
-    },
-    rows: {
-      "author/1": ["Orson Scott Card", 1951],
-      "author/2": ["Frank Herbert", 1920],
-      "book/1": ["Ender's Game", ["author/1"]],
-      "book/2": ["Dune", ["author/2"]],
-      "book/3": ["Collab Book", ["author/1", "author/2"]]
-    }
+    "author/1": { name: "Orson Scott Card", birthYear: 1951 },
+    "author/2": { name: "Frank Herbert", birthYear: 1920 },
+    "book/1": { title: "Ender's Game", authors: ["author/1"] },
+    "book/2": { title: "Dune", authors: ["author/2"] },
+    "book/3": { title: "Collab Book", authors: ["author/1", "author/2"] }
   };
 
   document.portals.define("get-data", { reaction: NAME => () => jsonData });
   document.portals.define("spa", {
-    reaction: NAME => e => {
-      debugger;
-      return (e.intercept(), new URL(e.destination.url).hash.slice(1))
-    }
+    reaction: NAME => e => (e.intercept(), new URL(e.destination.url).hash.slice(1))
   });
   document.portals.define("main", { reaction: NAME => ({ er, path }) => ({ ...er[path] }) });
 

@@ -27,31 +27,23 @@
 // }
 
 const er = {
-  reaction: NAME => function ({ rows, schemas }) {
-    if (!rows || !schemas) return undefined;
+  reaction: NAME => function (rows) {
 
-    const SCHEMAS = Object.create(null);
     const OwnKeys = Object.create(null);
-    for (let type in schemas) {
-      const keys = Object.keys(schemas[type]);
-      SCHEMAS[type] = Object.fromEntries(keys.map((k, i) => [k, i]));
-      OwnKeys[type] = Object.freeze(['id', 'type', 'slug', ...keys]);
-    }
+    for (let [type, example] of Object.entries(schemas(rows)))
+      OwnKeys[type] = ['id', 'type', 'slug', ...Object.keys(example)];
 
     function createERProxy(rows, id) {
       const tuple = rows[id];
       if (tuple == null) return null;
       const [type, slug] = id.split('/');
-      const nameToIndex = SCHEMAS[type];
 
       return new Proxy(Object.create(null), {
         get(target, p) {
           if (p === 'id') return id;
           if (p === 'type') return type;
           if (p === 'slug') return slug;
-          const i = nameToIndex[p];
-          if (i === undefined) return undefined;
-          const value = tuple[i];
+          const value = tuple[p];
           if (Array.isArray(value))
             return value.map(childId => createERProxy(rows, childId));
           return value;
@@ -71,6 +63,15 @@ const er = {
     });
   }
 };
+
+function schemas(jsonRelations) {
+  const res = {};
+  for (let [k, v] of Object.entries(jsonRelations)) {
+    const type = k.split("/")[0];
+    res[type] = Object.assign(res[type] ?? {}, v);
+  }
+  return res;
+}
 
 export {
   er,
