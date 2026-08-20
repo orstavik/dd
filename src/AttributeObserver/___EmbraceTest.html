@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Nested Templates & Directives Testbed</title>
+</head>
+
+<body>
+
+  <!-- ========================================================= -->
+  <!-- 1. ROOT LIVE TEMPLATE (Contains nested templates & shorthands) -->
+  <!-- ========================================================= -->
+  <template id="dashboard-view">
+    <section class="dashboard">
+      <header>
+        <h1 .title="${$.dashboard.title}">Dashboard: ${$.dashboard.title}</h1>
+        <span class="badge" ?data-active="${$.dashboard.isActive}">
+          Status: ${$.dashboard.status}
+        </span>
+      </header>
+
+      <!-- Shorthand ?for?= desugars to synthetic <template> + for..of loop -->
+      <ul class="user-list">
+        <li class="user-card" ?for?="$.dashboard.users" .userId="${$.user.id}">
+          <h3>${$.user.name} (${$.user.role})</h3>
+
+          <!-- Explicit Code Comment invoking nested template -->
+          <!--:: 
+            for (const task of $.user.tasks) {
+              $$.taskItem(task);
+            }
+          -->
+        </li>
+      </ul>
+
+      <!-- Nested Active Template -->
+      <template id="stats-panel">
+        <aside class="stats-box" ?hidden="${$.dashboard.hideStats}">
+          <h4>Metrics</h4>
+          <p>Active Users: ${$.dashboard.activeCount}</p>
+        </aside>
+      </template>
+
+      <!-- Nested Commented-out Template (Inert/Comment Mode) -->
+      <!--<template id="audit-log">-->
+      <div class="audit-row">
+        <span .timestamp="${$.log.time}">${$.log.time}</span>
+        <p>${$.log.message}</p>
+      </div>
+      <!--</template>-->
+
+    </section>
+  </template>
+
+  <!-- ========================================================= -->
+  <!-- 2. STANDALONE COMMENTED-OUT TEMPLATE -->
+  <!-- ========================================================= -->
+  <!--<template id="task-item">-->
+  <li class="task-entry" ?completed="${$.task.done}">
+    <input type="checkbox" .checked="${$.task.done}">
+    <span class="task-title">${$.task.title}</span>
+
+    <!-- Shorthand ?= conditional desugars to synthetic <template> + if -->
+    <span class="priority-flag" ?="${$.task.isPriority}">
+      [HIGH PRIORITY]
+    </span>
+  </li>
+  <!--</template>-->
+
+  <!-- ========================================================= -->
+  <!-- 3. SSR-STAMPED OUTPUT (Hydration Target Example) -->
+  <!-- ========================================================= -->
+  <main id="app-root">
+    <!--?dashboard-view-->
+    <section class="dashboard">
+      <header>
+        <h1>Dashboard: Team Alpha</h1>
+        <span class="badge" data-active="">
+          Status: Active
+        </span>
+      </header>
+
+      <ul class="user-list">
+        <li class="user-card">
+          <h3>Alice (Admin)</h3>
+          <!--:: for (const task of user.tasks) { $.taskItem(task); } -->
+
+          <!-- Nested Stamp instance -->
+          <!--?task-item-->
+        <li class="task-entry">
+          <input type="checkbox">
+          <span class="task-title">Deploy v2 parser</span>
+          <span class="priority-flag">[HIGH PRIORITY]</span>
+        </li>
+        <!--/?task-item-->
+
+        </li>
+      </ul>
+    </section>
+    <!--/?dashboard-view-->
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 4. CSP-COMPLIANT FUNCTION REGISTRY (globalThis.Functions) -->
+  <!-- ========================================================= -->
+  <script>
+    const F = (globalThis.Functions ??= Object.create(null));
+
+    // Dashboard Expressions
+    F["$.dashboard.title"] = $ => $.dashboard.title;
+    F["$.dashboard.isActive"] = $ => $.dashboard.isActive;
+    F["$.dashboard.status"] = $ => $.dashboard.status;
+    F["$.dashboard.hideStats"] = $ => $.dashboard.hideStats;
+    F["$.dashboard.activeCount"] = $ => $.dashboard.activeCount;
+
+    // User Card Expressions
+    F["$.user.id"] = $ => $.user.id;
+    F["$.user.name"] = $ => $.user.name;
+    F["$.user.role"] = $ => $.user.role;
+
+    // Task & Audit Expressions
+    F["$.task.done"] = $ => $.task.done;
+    F["$.task.title"] = $ => $.task.title;
+    F["$.task.isPriority"] = $ => $.task.isPriority;
+    F["$.log.time"] = $ => $.log.time;
+    F["$.log.message"] = $ => $.log.message;
+
+    //?for?
+    F["$.dashboard.users"] = ($, $$) => {for(let user of $.dashboard.users) { $$.userCard(user); }};
+
+    // Code Comment Statements
+    F["for (const task of $.user.tasks) {\n              $$.taskItem(task);\n            }"] =
+      ($, $$) => {
+        for (const task of $.user.tasks) {
+          $$.taskItem(task);
+        }
+      };
+  </script>
+
+</body>
+
+</html>

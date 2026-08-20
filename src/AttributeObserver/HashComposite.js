@@ -12,6 +12,7 @@ const HASHTAGS = {
   array: 9,
   objectLiteral: 10,
   property: 11,
+  function: 12,
 };
 
 function hashString(hash, str) {
@@ -42,7 +43,7 @@ function hashPrimitive(hash, v) {
   throw new TypeError("Unsupported type for hashing: " + t + " with value: " + v);
 }
 
-class WeakWeakHashMap {
+class WeakHashMap {
   constructor() {
     this.simpleHashToObj = new Map();
     this.objToHash = new WeakMap();
@@ -64,7 +65,6 @@ class WeakWeakHashMap {
   add(hash, obj) {
     const old = this.simpleHashToObj.get(hash)?.deref();
     if (!old) {
-      Object.freeze(obj);
       this.simpleHashToObj.set(hash, new WeakRef(obj));
       this.objToHash.set(obj, hash);
       this.finale.register(obj, hash);
@@ -77,7 +77,6 @@ class WeakWeakHashMap {
     for (let i = 0, o; i < ar.length; i++)
       if (this.#sameSame(o = ar[i].deref(), obj))
         return o;
-    Object.freeze(obj);
     ar.push(new WeakRef(obj));
     this.objToHash.set(obj, hash);
     this.finale.register(obj, hash);
@@ -108,16 +107,16 @@ class WeakWeakHashMap {
   }
 }
 
-const CACHE = new WeakWeakHashMap();
+const HASHCACHE = new WeakHashMap();
 const DIRTY = Symbol("dirty");
 
-function Composite(obj) {
-  const res = CompositeImpl(obj, new WeakSet());
+export function composite(obj) {
+  const res = compositeImpl(obj, new WeakSet());
   return res === DIRTY ? obj : res;
 }
 
-function CompositeImpl(obj, seen) {
-  if (Composite.isComposite(obj)) return obj;
+function compositeImpl(obj, seen) {
+  if (composite.is(obj)) return obj;
   if (Object.isFrozen(obj)) return DIRTY;
 
   const proto = Object.getPrototypeOf(obj);
@@ -135,7 +134,7 @@ function CompositeImpl(obj, seen) {
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i];
     const o = obj[k];
-    const v = CompositeImpl(o, seen);
+    const v = compositeImpl(o, seen);
     if (v === DIRTY) {
       dirty = true;
       continue;
@@ -147,16 +146,117 @@ function CompositeImpl(obj, seen) {
     hash = hashString(hash, k);
     const t = typeof v;
     hash = (v && t === 'object') ?
-      Math.imul(hash ^ CACHE.getHash(v), 0x01000193) :
+      Math.imul(hash ^ HASHCACHE.getHash(v), 0x01000193) :
       hashPrimitive(hash, v);
   }
 
   seen.delete(obj);
-  return dirty ? DIRTY : CACHE.add(hash, obj);
+  return dirty ? DIRTY : HASHCACHE.add(hash, Object.freeze(obj));
 }
 
-Composite.isComposite = function isComposite(v) {
+composite.is = function is(v) {
   return v == null || typeof v === 'string' ||
     typeof v === 'number' || typeof v === 'boolean' ||
-    typeof v === 'bigint' || CACHE.getHash(v) !== undefined;
+    typeof v === 'bigint' || HASHCACHE.getHash(v) !== undefined;
 }
+
+composite.lenseSet = function lenseSet() {
+};
+
+composite.lensePushOrFail = function lensePushOrFail() {
+  const value = arguments.at(-1);
+  if (arguments.length < 3)
+    throw new TypeError("composite.lensePush: Expected at least 3 arguments, but got " + arguments.length);
+  let ar = arguments[0];
+  for (let i = 1; i < arguments.length - 2; i++) {
+    const key = arguments[i];
+    if (!Object.hasOwn(ar, key))
+      throw new TypeError("composite.lensePush: Key " + key + " does not exist in the object at path " + arguments.slice(1, i + 1).join("."));
+    ar = ar[key];
+  }
+  if (!Array.isArray(ar))
+    throw new TypeError("composite.lensePush: Expected an array at path " + arguments.slice(1, arguments.length - 1).join(".") + ", but got " + typeof ar);
+  ar.push(value);
+};
+
+composite.lensePushOrCreate = function lensePushOrCreate() {
+const value = arguments.at(-1);
+  if (arguments.length < 3)
+    throw new TypeError("composite.lensePush: Expected at least 3 arguments, but got " + arguments.length);
+  let ar = arguments[0];
+  for (let i = 1; i < arguments.length - 2; i++) {
+    const key = arguments[i];
+    if (!Object.hasOwn(ar, key))
+      ar[key] = typeof arguments[i + 1] === "number" ? [] : {};
+    ar = ar[key];
+  }
+  if (!Array.isArray(ar))
+    throw new TypeError("composite.lensePush: Expected an array at path " + arguments.slice(1, arguments.length - 1).join(".") + ", but got " + typeof ar);
+  ar.push(value);
+}
+
+//const newState = composite.lensePush(state, "bob", "alice", "and a one");
+//const newState = composite.lenseSet(state, "bob", "alice", -3, "and a one");
+//state is a composite.
+//const newState = composite({...state, bob: {...state.bob, alice: [...state.bob.alice, "and a one"]}});
+
+// const first = obj => HASHCACHE.getHash(obj) === undefined ? obj : (Array.isArray(obj) ? [...obj] : { ...obj });
+
+// function buildPath(root, args, i, end, last) {
+//   for (; i < end; i++) {
+//     const key = args[i];
+//     const j = i + 1;
+//     if (j === end)
+//       return root[key] = typeof last === "number" ? [] : {};
+//     root = root[key] = typeof args[j] === "number" ? [] : {};
+//   }
+// }
+
+// function cloneCompositePath(root, args, i, end, last) {
+//   root = Array.isArray(root) ? [...root] : { ...root };
+//   for (; i < end; i++) {
+//     const key = args[i];
+//     if (!Object.hasOwn(root, key))
+//       return buildPath(root, args, i, end, last);
+//     const next = root[key];
+//     root = root[key] = Array.isArray(next) ? [...next] : { ...next };
+//   }
+//   return root;
+// }
+
+// function spool(root, args, i, end, last) {
+//   for (; i < end; i++) {
+//     const key = args[i];
+//     if (!Object.hasOwn(root, key))
+//       return buildPath(root, args, i, end, last);
+//     const next = root[key];
+//     if (HASHCACHE.getHash(next))
+//       return root[key] = cloneCompositePath(next, args, i, end, last);
+//     root = next;
+//   }
+//   return root;
+// }
+
+// const state = {};
+// //the problem with writing it like this, is that we always make new objects, even when we just want to deepMutate.
+// const state2 = {...state, bob: {...state.bob, alice: [...state.bob.alice]}}; 
+// composite.cloneWriteable = function cloneWriteable() {
+//   const root = first(arguments[0]);
+//   spool(root, arguments, 1, arguments.length);
+//   return root;
+// }
+
+// composite.set = function set() {
+//   const len = arguments.length;
+//   if (len < 3)
+//     throw new TypeError("composite.set: Expected at least 3 arguments, but got " + len);
+//   const root = first(arguments[0]);
+//   const last = spool(root, arguments, 1, len - 2);
+//   last[arguments[len - 2]] = arguments[len - 1];
+//   return root;
+// }
+
+//todo 1. no! we need to memoize function calls.. But i don't see how we can do this super efficiently.
+//todo 2. yes! we need a method (lens) to assign a property into a composite object, so that it returns the most efficient composite object.
+//todo 3. that means that the object must be unfrozen when we assign something to it.
+//todo 4. no! immer uses a Proxy to do this, but we can do it without a Proxy, by using a lens to assign properties into a composite object. This method will create a new composite object with the new property, and return it. The old composite object will remain unchanged.
